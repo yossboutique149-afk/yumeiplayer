@@ -8,6 +8,7 @@ import { AiBadge } from "../../components/Badges.jsx";
 import { AI_DISCLAIMER } from "../../data/sample.js";
 
 const FIELDS = [
+  ["meaning", "What it means"],
   ["story", "Story"],
   ["verses", "Verse by verse"],
   ["metaphors", "Metaphors"],
@@ -15,10 +16,12 @@ const FIELDS = [
   ["emotions", "Emotions"],
   ["production", "Production"],
   ["themes", "Themes (comma separated)"],
-  ["connections", "Connections to other songs"]
+  ["connections", "Connections to other songs"],
+  ["pronunciation_guide", "How to sing it"]
 ];
 
 const EMPTY = {
+  meaning: "",
   story: "",
   verses: "",
   metaphors: "",
@@ -53,6 +56,7 @@ export default function DecodeAdminPage() {
         setValues(
           analysis
             ? {
+                meaning: analysis.meaning || "",
                 story: analysis.story || "",
                 verses: analysis.verses || "",
                 metaphors: analysis.metaphors || "",

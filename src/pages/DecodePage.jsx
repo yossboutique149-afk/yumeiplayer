@@ -8,6 +8,7 @@ import { AiBadge } from "../components/Badges.jsx";
 import { pluralize } from "../lib/format.js";
 
 const SECTIONS = [
+  ["meaning", "What it means"],
   ["story", "Story"],
   ["verses", "Verse by verse"],
   ["metaphors", "Metaphors"],
@@ -15,7 +16,8 @@ const SECTIONS = [
   ["emotions", "Emotions"],
   ["production", "Production"],
   ["themes", "Themes"],
-  ["connections", "Connections to other songs"]
+  ["connections", "Connections to other songs"],
+  ["pronunciation_guide", "How to sing it"]
 ];
 
 export default function DecodePage() {
