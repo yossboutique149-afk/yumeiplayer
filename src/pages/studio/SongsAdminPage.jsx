@@ -7,6 +7,7 @@ import { useToast } from "../../contexts/ToastContext.jsx";
 import { SampleBadge, StatusBadge } from "../../components/Badges.jsx";
 import CoverArt from "../../components/CoverArt.jsx";
 import EmptyState from "../../components/EmptyState.jsx";
+import StudyGenerator from "../../components/StudyGenerator.jsx";
 import { formatDuration, slugify } from "../../lib/format.js";
 import { isAllowedEmbed } from "../../components/EmbedFrame.jsx";
 
@@ -369,29 +370,32 @@ export default function SongsAdminPage() {
       {songs.length ? (
         <div className="stack">
           {songs.map(song => (
-            <div className="admin-card row between" key={song.id}>
-              <div className="row">
-                <CoverArt item={song} className="song-thumb" />
-                <div>
-                  <div className="song-row-title">{song.title}</div>
-                  <div className="tiny faint">
-                    {song.slug} · {song.release_type} ·{" "}
-                    {song.audio_url ? "audio ✓" : "no audio"}
-                  </div>
-                  <div className="row">
-                    <StatusBadge status={song.status} />
-                    <SampleBadge show={song.is_sample} />
+            <div className="admin-card stack" key={song.id}>
+              <div className="row between">
+                <div className="row">
+                  <CoverArt item={song} className="song-thumb" />
+                  <div>
+                    <div className="song-row-title">{song.title}</div>
+                    <div className="tiny faint">
+                      {song.slug} · {song.release_type} ·{" "}
+                      {song.audio_url ? "audio ✓" : "no audio"}
+                    </div>
+                    <div className="row">
+                      <StatusBadge status={song.status} />
+                      <SampleBadge show={song.is_sample} />
+                    </div>
                   </div>
                 </div>
+                <div className="row">
+                  <button type="button" className="btn btn-quiet btn-sm" onClick={() => edit(song)}>
+                    Edit
+                  </button>
+                  <button type="button" className="btn btn-quiet btn-sm" onClick={() => remove(song)}>
+                    <Trash2 size={14} /> Delete
+                  </button>
+                </div>
               </div>
-              <div className="row">
-                <button type="button" className="btn btn-quiet btn-sm" onClick={() => edit(song)}>
-                  Edit
-                </button>
-                <button type="button" className="btn btn-quiet btn-sm" onClick={() => remove(song)}>
-                  <Trash2 size={14} /> Delete
-                </button>
-              </div>
+              <StudyGenerator song={song} onApplied={refresh} />
             </div>
           ))}
         </div>

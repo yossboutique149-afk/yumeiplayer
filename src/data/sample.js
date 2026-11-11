@@ -122,26 +122,57 @@ export const sampleSongs = [
   }
 ];
 
-const sampleLine = (index, start, end) => ({
+const SAMPLE_LINES = [
+  {
+    original: "夜のステージに 光がともる",
+    romanization: "yoru no sutēji ni hikari ga tomoru",
+    pronunciation: "YO-ru no SU-TEH-ji ni hi-KA-ri ga to-MO-ru",
+    translation: "Lights come on across the night stage"
+  },
+  {
+    original: "リボンはほどけて 息が止まる",
+    romanization: "ribon wa hodokete iki ga tomaru",
+    pronunciation: "RI-bon wa ho-DO-ke-te I-ki ga to-MA-ru",
+    translation: "The ribbon comes undone and my breath stops"
+  },
+  {
+    original: "数えきれない傷を 抱いて歌う",
+    romanization: "kazoekirenai kizu o daite utau",
+    pronunciation: "ka-ZO-e-ki-re-NA-i KI-zu o DA-i-te u-TA-u",
+    translation: "I sing while holding wounds I cannot count"
+  },
+  {
+    original: "それでも声は まだ消えない",
+    romanization: "soredemo koe wa mada kienai",
+    pronunciation: "so-RE-de-mo KO-e wa ma-DA ki-e-NA-i",
+    translation: "Even so, my voice has not disappeared"
+  },
+  {
+    original: "わたしの銀河は ここにある",
+    romanization: "watashi no ginga wa koko ni aru",
+    pronunciation: "wa-TA-shi no GIN-ga wa KO-ko ni A-ru",
+    translation: "My galaxy is right here"
+  },
+  {
+    original: "幕が上がる わたしはわたしでいい",
+    romanization: "maku ga agaru watashi wa watashi de ii",
+    pronunciation: "MA-ku ga a-GA-ru wa-TA-shi wa wa-TA-shi de I-i",
+    translation: "The curtain rises: being myself is enough"
+  }
+];
+
+/** Sample timings so the karaoke view has something to follow. */
+export const sampleLyricLines = SAMPLE_LINES.map((line, index) => ({
   id: `line-sample-01-${index}`,
   song_id: "song-sample-01",
   line_index: index,
-  original: `プレースホルダー行 ${index + 1}`,
-  romanization: `purēsuborudā gyō ${index + 1}`,
-  translation: `Placeholder line ${index + 1}`,
-  pronunciation: `puh-REH-soo-boh-roo-dah gyoh ${index + 1}`,
-  start_ms: start,
-  end_ms: end
-});
-
-export const sampleLyricLines = [
-  sampleLine(0, 2000, 6000),
-  sampleLine(1, 6000, 10000),
-  sampleLine(2, 10000, 14000),
-  sampleLine(3, 14000, 18000),
-  sampleLine(4, 18000, 22000),
-  sampleLine(5, 22000, 26000)
-];
+  original: line.original,
+  romanization: line.romanization,
+  translation: line.translation,
+  pronunciation: line.pronunciation,
+  start_ms: 2000 + index * 4000,
+  end_ms: 6000 + index * 4000
+}));
 
 export const sampleVocabulary = [
   {
@@ -151,45 +182,84 @@ export const sampleVocabulary = [
     reading: "ぎんが",
     romaji: "ginga",
     meaning: "galaxy",
-    notes: "Sample vocabulary entry.",
-    line_index: 0
+    notes: "Sample entry: the image the chorus builds the whole song around.",
+    line_index: 4
   },
   {
     id: "vocab-sample-2",
     song_id: "song-sample-01",
-    term: "彼女",
-    reading: "かのじょ",
-    romaji: "kanojo",
-    meaning: "she / girlfriend",
-    notes: "Sample vocabulary entry.",
-    line_index: 1
+    term: "傷",
+    reading: "きず",
+    romaji: "kizu",
+    meaning: "wound / scar",
+    notes: "Sample entry: literally a wound, often used for emotional damage.",
+    line_index: 2
   },
   {
     id: "vocab-sample-3",
     song_id: "song-sample-01",
-    term: "夢",
-    reading: "ゆめ",
-    romaji: "yume",
-    meaning: "dream",
-    notes: "Sample vocabulary entry.",
-    line_index: 2
+    term: "声",
+    reading: "こえ",
+    romaji: "koe",
+    meaning: "voice",
+    notes: "Sample entry: sung 'koe', not 'sei' — the singing voice.",
+    line_index: 3
+  },
+  {
+    id: "vocab-sample-4",
+    song_id: "song-sample-01",
+    term: "幕",
+    reading: "まく",
+    romaji: "maku",
+    meaning: "curtain (of a stage)",
+    notes: "Sample entry: stage vocabulary that ties the song to a performance.",
+    line_index: 5
+  },
+  {
+    id: "vocab-sample-5",
+    song_id: "song-sample-01",
+    term: "ほどける",
+    reading: "ほどける",
+    romaji: "hodokeru",
+    meaning: "to come untied / to come loose",
+    notes: "Sample entry: an intransitive verb, so the ribbon unties itself.",
+    line_index: 1
+  },
+  {
+    id: "vocab-sample-6",
+    song_id: "song-sample-01",
+    term: "ともる",
+    reading: "ともる",
+    romaji: "tomoru",
+    meaning: "to be lit (of a light)",
+    notes: "Sample entry: used for lights and lanterns, softer than 'tsuku'.",
+    line_index: 0
   }
 ];
-
-const sampleAnalysisText =
-  "Sample placeholder. The administrator has not supplied an approved interpretation for this field yet, so nothing is asserted here.";
 
 export const sampleAnalyses = [
   {
     song_id: "song-sample-01",
-    story: sampleAnalysisText,
-    verses: sampleAnalysisText,
-    metaphors: sampleAnalysisText,
-    symbolism: sampleAnalysisText,
-    emotions: sampleAnalysisText,
-    production: sampleAnalysisText,
-    themes: sampleAnalysisText,
-    connections: sampleAnalysisText,
+    meaning:
+      "AI-written sample: the song reads as a small stage ritual about being seen without armour — a performer steps into the light, loses the ribbon that keeps her composed, and decides that the version of herself that is still standing is enough.",
+    story:
+      "AI-written sample: three movements. The lights come up on an empty stage; the middle verses strip the performance away (the ribbon loosens, breath stops); the last lines turn the stage into a galaxy, so the room the song started in becomes the whole world it was afraid of.",
+    verses:
+      "AI-written sample, verse by verse. Lines 1-2 set the scene and break it in the same breath: light arrives, but the ribbon — composure — gives way. Lines 3-4 hold the wound and the voice together, refusing to choose between damage and song. Lines 5-6 resolve by enlarging the frame: the galaxy is not elsewhere, and the curtain rising is permission rather than exposure.",
+    metaphors:
+      "AI-written sample: the ribbon stands for the tidy self that is performed for an audience; the stopped breath is stage fright made physical; the galaxy inside the singer turns an intimate feeling into a cosmic scale, which is how the song avoids sounding like a complaint.",
+    symbolism:
+      "AI-written sample: the stage is a place where identity is tested in public; the rising curtain is both exposure and beginning; the light is attention, which is what the narrator both fears and asks for.",
+    emotions:
+      "AI-written sample: anxiety in the first half, held rather than released; defiance from line 3 onward; a quiet, unspectacular relief at the end. The emotional arc moves from breathless to breathing.",
+    production:
+      "AI-written sample: the lyric is built for a slow build — a sparse opening that leaves space around the voice, a fuller middle where the wounds are counted, and a wide final line that invites a lifted arrangement. Nothing here is a claim about the real recording.",
+    themes:
+      "AI-written sample: performance versus self, scars as evidence rather than shame, belonging, and the choice to keep singing.",
+    connections:
+      "AI-written sample: it shares its stage imagery with 'Stage of Split Queens', its scar language with 'Calendar Scars', and its galaxy image with 'Kanojo wa Watashi no Ginga Datta' — which is exactly the kind of link a real decode should verify against the actual songs.",
+    pronunciation_guide:
+      "AI-written sample: keep vowels short and even; 'sutēji' holds a long ē (SU-TEH-ji), and 'ginga' keeps a hard g in both syllables. The capitalized syllables above are the beats to land on. Japanese is mora-timed, so give each syllable roughly the same length instead of stressing words as in English.",
     is_ai_generated: true,
     disclaimer: AI_DISCLAIMER,
     updated_at: NOW
