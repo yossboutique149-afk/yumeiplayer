@@ -1,3 +1,6 @@
+import { WifiOff } from "lucide-react";
+import { useOffline } from "../contexts/OfflineContext.jsx";
+
 const ALLOWED = [
   { host: "open.spotify.com", path: "/embed/" },
   { host: "www.youtube.com", path: "/embed/" },
@@ -19,7 +22,24 @@ export function isAllowedEmbed(url) {
 }
 
 export default function EmbedFrame({ url, title = "Official embed", label }) {
+  const { online } = useOffline();
+
   if (!url) return null;
+
+  if (!online) {
+    return (
+      <div className="notice embed-offline">
+        <WifiOff size={16} />
+        <span>
+          The official player needs a connection. Covers, lyrics and your favorites still work
+          offline.
+        </span>
+        <a href={url} target="_blank" rel="noreferrer noopener">
+          {label || "Open on the official platform"}
+        </a>
+      </div>
+    );
+  }
 
   if (!isAllowedEmbed(url)) {
     return (

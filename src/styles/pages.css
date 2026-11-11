@@ -633,3 +633,228 @@ table.data td .row { gap: 0.3rem; }
   .hero-meta { gap: 1rem; }
   .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* ---------------- Offline mode & install ---------------- */
+.online-pill.is-offline {
+  color: var(--warning);
+  border-color: rgba(255, 217, 163, 0.4);
+  background: rgba(255, 217, 163, 0.1);
+}
+
+.offline-page {
+  display: grid;
+  gap: 1.6rem;
+}
+
+.offline-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.status-chip.is-good {
+  color: var(--success);
+  border-color: rgba(155, 231, 196, 0.35);
+  background: rgba(155, 231, 196, 0.1);
+}
+
+.status-chip.is-warn {
+  color: var(--warning);
+  border-color: rgba(255, 217, 163, 0.4);
+  background: rgba(255, 217, 163, 0.12);
+}
+
+.offline-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.offline-card {
+  padding: 1.35rem;
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+}
+
+.offline-card h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.offline-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.offline-card .btn {
+  justify-self: start;
+}
+
+.offline-meta {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  color: var(--text-soft);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.offline-meta svg {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+  color: var(--success);
+}
+
+.offline-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.offline-progress span {
+  display: block;
+  height: 100%;
+  background: var(--gradient-aurora);
+  transition: width var(--transition);
+}
+
+.offline-checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.offline-checklist li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  color: var(--text-soft);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.offline-checklist svg {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+  color: var(--success);
+}
+
+.offline-checklist li:last-child svg {
+  color: var(--warning);
+}
+
+.offline-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.4rem;
+}
+
+.install-card {
+  position: fixed;
+  left: 1rem;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  z-index: 40;
+  width: min(360px, calc(100vw - 2rem));
+  padding: 1rem;
+  display: grid;
+  gap: 0.7rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: linear-gradient(160deg, rgba(21, 14, 34, 0.98), rgba(29, 19, 48, 0.98));
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(12px);
+}
+
+.install-card-head {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  padding-right: 1.2rem;
+}
+
+.install-card-head strong {
+  font-size: 0.95rem;
+}
+
+.install-card-head p {
+  margin: 0.15rem 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.install-card-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--gradient-aurora);
+  color: #241033;
+  flex-shrink: 0;
+}
+
+.install-card-hint {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.install-card .btn {
+  justify-self: start;
+}
+
+.install-card-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: transparent;
+  border: 0;
+  color: var(--faint);
+  padding: 0.3rem;
+}
+
+.embed-offline {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.embed-offline a {
+  color: var(--lavender);
+}
+
+@media (max-width: 720px) {
+  .install-card {
+    left: 0.75rem;
+    right: 0.75rem;
+    width: auto;
+    bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px));
+  }
+}
