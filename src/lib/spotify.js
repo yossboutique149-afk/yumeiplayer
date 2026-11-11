@@ -13,14 +13,22 @@ function text(value, limit = 300) {
   return String(value).trim().slice(0, limit);
 }
 
+const JAPANESE = /[\u3040-\u30ff\u4e00-\u9faf]/;
+
 export function slugifyTitle(value) {
-  return text(value, 200)
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\u3040-\u30ff\u4e00-\u9faf]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60) || "release";
+  const raw = text(value, 200).toLowerCase();
+  // NFKD + combining-mark removal strips Latin accents, but it also splits
+  // Japanese kana (だった -> た + combining dakuten), so kana keep NFC.
+  const base = JAPANESE.test(raw)
+    ? raw.normalize("NFC")
+    : raw.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+
+  return (
+    base
+      .replace(/[^a-z0-9\u3040-\u30ff\u4e00-\u9faf]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60) || "release"
+  );
 }
 
 function https(value) {
