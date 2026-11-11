@@ -8,6 +8,13 @@ import { fileURLToPath } from "url";
 import { buildStudyPrompt, normalizeStudy, isStudyEmpty, STUDY_DISCLAIMER } from "./src/lib/study.js";
 import { spotifyImportPayload, summarizeImport } from "./src/lib/spotify.js";
 import {
+  DEFAULT_ARTIST_ID,
+  buildPublicSongs,
+  isArtistId,
+  parseSpotifyEmbed,
+  spotifyArtistEmbedUrl
+} from "./src/lib/publicCatalogue.js";
+import {
   AI_KEY_VARS,
   aiErrorHint,
   buildAIRequest,
@@ -192,6 +199,107 @@ export function createApp() {
 
   app.get("/api/health", (req, res) => {
     res.json({ status: "online", service: "YUMEIKA API" });
+  });
+
+  /* ---------------------------------------------------------------- *
+   * Public artist catalogue — no credentials required
+   * ---------------------------------------------------------------- */
+  const PUBLIC_CATALOGUE_TTL_MS = 30 * 60 * 1000;
+  const publicCatalogueCache = { artistId: "", at: 0, payload: null };
+  const publicCatalogueFile = path.join(__dirname, "data/artist-catalogue.json");
+
+  function readPublicCatalogueFile() {
+    try {
+      return JSON.parse(fs.readFileSync(publicCatalogueFile, "utf8"));
+    } catch {
+      return null;
+    }
+  }
+
+  function writePublicCatalogueFile(payload) {
+    try {
+      fs.mkdirSync(path.dirname(publicCatalogueFile), { recursive: true });
+      fs.writeFileSync(publicCatalogueFile, JSON.stringify(payload, null, 2));
+    } catch {
+      /* A read-only filesystem is fine: the memory cache still serves it. */
+    }
+  }
+
+  async function fetchPublicArtistCatalogue(artistId) {
+    const response = await fetch(spotifyArtistEmbedUrl(artistId), {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9"
+      },
+      signal: AbortSignal.timeout(15000)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Spotify public catalogue unavailable (${response.status}).`);
+    }
+
+    const artist = parseSpotifyEmbed(await response.text());
+    const songs = buildPublicSongs(artist);
+    if (!songs.length) throw new Error("Spotify returned no tracks for this artist.");
+    return { artist, songs };
+  }
+
+  /**
+   * GET /api/public/catalogue
+   *
+   * Public and credential-free: the artist's real titles, artwork and
+   * durations come from Spotify's public embed, so the site is never empty
+   * just because the studio has no Web API key. Audio is never copied — each
+   * track keeps Spotify's official player. Cached in memory and on disk, so
+   * the catalogue survives Spotify being briefly unreachable.
+   */
+  app.get("/api/public/catalogue", async (req, res) => {
+    const requested = String(
+      req.query.artistId || env("SPOTIFY_ARTIST_ID") || DEFAULT_ARTIST_ID
+    ).trim();
+    const artistId = isArtistId(requested) ? requested : DEFAULT_ARTIST_ID;
+    const now = Date.now();
+
+    if (
+      publicCatalogueCache.payload &&
+      publicCatalogueCache.artistId === artistId &&
+      now - publicCatalogueCache.at < PUBLIC_CATALOGUE_TTL_MS
+    ) {
+      res.set("Cache-Control", "public, max-age=300");
+      return res.json({ ...publicCatalogueCache.payload, cached: true });
+    }
+
+    try {
+      const { artist, songs } = await fetchPublicArtistCatalogue(artistId);
+      const payload = {
+        artistId,
+        artist,
+        songs,
+        fetchedAt: new Date().toISOString(),
+        source: "spotify-embed"
+      };
+      publicCatalogueCache.artistId = artistId;
+      publicCatalogueCache.at = now;
+      publicCatalogueCache.payload = payload;
+      writePublicCatalogueFile(payload);
+      res.set("Cache-Control", "public, max-age=300");
+      return res.json({ ...payload, cached: false });
+    } catch (error) {
+      const stored = readPublicCatalogueFile();
+      if (stored && Array.isArray(stored.songs) && stored.songs.length) {
+        res.set("Cache-Control", "public, max-age=60");
+        return res.json({ ...stored, cached: true, stale: true, warning: error.message });
+      }
+      return res.json({
+        artistId,
+        artist: null,
+        songs: [],
+        fetchedAt: null,
+        source: "unavailable",
+        warning: error.message
+      });
+    }
   });
 
   /** Public: tells the Studio which integrations exist, never the secrets. */

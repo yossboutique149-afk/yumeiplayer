@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { repo, dataMode } from "../lib/dataClient.js";
+import { mergePublicSongs } from "../lib/publicCatalogue.js";
 import { useAuth } from "./AuthContext.jsx";
 
 const ContentContext = createContext(null);
@@ -10,6 +11,8 @@ export function ContentProvider({ children }) {
   const [songs, setSongs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [publicSongs, setPublicSongs] = useState([]);
+  const [spotifyArtist, setSpotifyArtist] = useState(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -35,6 +38,27 @@ export function ContentProvider({ children }) {
     refresh();
   }, [refresh]);
 
+  // The official Spotify catalogue is served by our own API, so the public
+  // site shows the artist's real releases even without Supabase or API keys.
+  useEffect(() => {
+    let active = true;
+    fetch("/api/public/catalogue")
+      .then(response => (response.ok ? response.json() : null))
+      .then(data => {
+        if (!active || !data) return;
+        if (Array.isArray(data.songs) && data.songs.length) setPublicSongs(data.songs);
+        if (data.artist) setSpotifyArtist(data.artist);
+      })
+      .catch(() => {
+        /* Offline or unavailable: the stored catalogue still renders. */
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const allSongs = useMemo(() => mergePublicSongs(songs, publicSongs), [songs, publicSongs]);
+
   const albumById = useCallback(
     id => albums.find(album => album.id === id) || null,
     [albums]
@@ -42,16 +66,18 @@ export function ContentProvider({ children }) {
 
   const songsForAlbum = useCallback(
     albumId =>
-      songs
+      allSongs
         .filter(song => song.album_id === albumId)
         .sort((a, b) => Number(a.track_number || 0) - Number(b.track_number || 0)),
-    [songs]
+    [allSongs]
   );
 
   const value = useMemo(
     () => ({
       albums,
-      songs,
+      songs: allSongs,
+      spotifyArtist,
+      spotifyCount: allSongs.length - songs.length,
       loading,
       error,
       refresh,
@@ -60,7 +86,7 @@ export function ContentProvider({ children }) {
       dataMode,
       isLocalMode: dataMode === "local"
     }),
-    [albums, songs, loading, error, refresh, albumById, songsForAlbum]
+    [albums, allSongs, songs.length, spotifyArtist, loading, error, refresh, albumById, songsForAlbum]
   );
 
   return <ContentContext.Provider value={value}>{children}</ContentContext.Provider>;

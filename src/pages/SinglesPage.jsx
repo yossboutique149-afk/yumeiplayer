@@ -9,7 +9,9 @@ export default function SinglesPage() {
   const singles = useMemo(
     () =>
       songs.filter(
-        song => song.release_type === "single" || (!song.album_id && song.status === "published")
+        song =>
+          song.source !== "spotify" &&
+          (song.release_type === "single" || (!song.album_id && song.status === "published"))
       ),
     [songs]
   );
