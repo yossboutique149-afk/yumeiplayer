@@ -7,6 +7,14 @@ import { fileURLToPath } from "url";
 
 import { buildStudyPrompt, normalizeStudy, isStudyEmpty, STUDY_DISCLAIMER } from "./src/lib/study.js";
 import { spotifyImportPayload, summarizeImport } from "./src/lib/spotify.js";
+import {
+  AI_KEY_VARS,
+  aiErrorHint,
+  buildAIRequest,
+  describeAIProvider,
+  readAIResponse,
+  resolveAIProvider
+} from "./src/lib/aiProviders.js";
 
 dotenv.config();
 
@@ -30,8 +38,7 @@ const HOST = "0.0.0.0";
 
 const SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token";
 const SPOTIFY_API = "https://api.spotify.com/v1";
-const AI_DEFAULT_BASE = "https://api.openai.com/v1";
-const AI_DEFAULT_MODEL = "gpt-4o-mini";
+
 
 function env(name) {
   return String(process.env[name] || "").trim();
@@ -39,10 +46,6 @@ function env(name) {
 
 function hasSpotify() {
   return Boolean(env("SPOTIFY_CLIENT_ID") && env("SPOTIFY_CLIENT_SECRET"));
-}
-
-function hasAI() {
-  return Boolean(env("AI_API_KEY"));
 }
 
 function spotifyArtistId(body) {
@@ -154,39 +157,33 @@ function parseModelJson(content) {
 
 async function requestStudy({ song, language, notes }) {
   const { system, user } = buildStudyPrompt({ song, language, notes });
-  const base = (env("AI_BASE_URL") || AI_DEFAULT_BASE).replace(/\/+$/, "");
-  const model = env("AI_MODEL") || AI_DEFAULT_MODEL;
+  const provider = resolveAIProvider(env);
+  if (!provider) throw new Error("No AI provider is configured.");
 
-  const response = await fetch(`${base}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env("AI_API_KEY")}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0.7,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user }
-      ]
-    }),
-    signal: AbortSignal.timeout(90000)
-  });
+  const { url, init } = buildAIRequest({ provider, system, user });
+  const response = await fetch(url, { ...init, signal: AbortSignal.timeout(90000) });
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
+    const hint = aiErrorHint(provider, response.status);
     throw new Error(
       `The AI provider rejected the request (${response.status}). ${
-        response.status === 401 ? "Check AI_API_KEY." : detail.slice(0, 180)
+        hint || detail.slice(0, 180)
       }`.trim()
     );
   }
 
   const data = await response.json();
-  const content = data?.choices?.[0]?.message?.content;
-  return { study: normalizeStudy(parseModelJson(content)), model };
+  const content = readAIResponse(provider.kind, data);
+  if (!content) {
+    throw new Error("The AI provider returned an empty message.");
+  }
+
+  return {
+    study: normalizeStudy(parseModelJson(content)),
+    model: provider.model,
+    provider: provider.label
+  };
 }
 
 export function createApp() {
@@ -201,7 +198,7 @@ export function createApp() {
   app.get("/api/integrations/status", (req, res) => {
     res.json({
       spotify: { configured: hasSpotify(), artistId: env("SPOTIFY_ARTIST_ID") },
-      ai: { configured: hasAI(), model: env("AI_MODEL") || AI_DEFAULT_MODEL },
+      ai: describeAIProvider(resolveAIProvider(env)),
       adminGate: { configured: Boolean(env("ADMIN_PASSWORD")) }
     });
   });
@@ -242,12 +239,12 @@ export function createApp() {
   });
 
   app.post("/api/ai/study", adminGate, async (req, res) => {
-    if (!hasAI()) {
+    if (!resolveAIProvider(env)) {
       return missingEnv(
         res,
         "The AI writer is not configured on the server.",
         ["AI_API_KEY"],
-        "Add an AI provider key (AI_API_KEY, optionally AI_MODEL / AI_BASE_URL) to the hosting environment."
+        `Add any supported provider key to the hosting environment: ${AI_KEY_VARS.join(", ")}. AI_API_KEY means any OpenAI-compatible endpoint (optional AI_MODEL / AI_BASE_URL).`
       );
     }
 
@@ -257,7 +254,7 @@ export function createApp() {
     }
 
     try {
-      const { study, model } = await requestStudy({
+      const { study, model, provider } = await requestStudy({
         song,
         language: req.body?.language || "ja",
         notes: req.body?.notes || ""
@@ -270,6 +267,7 @@ export function createApp() {
       res.json({
         ok: true,
         model,
+        provider,
         study: { ...study, disclaimer: study.disclaimer || STUDY_DISCLAIMER },
         generatedAt: new Date().toISOString()
       });
