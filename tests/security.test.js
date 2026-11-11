@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { execSync } from "node:child_process";
 
 const root = new URL("..", import.meta.url).pathname;
 const read = relative => fs.readFileSync(path.join(root, relative), "utf8");
@@ -28,7 +29,7 @@ test("every exposed table enables Row Level Security", () => {
   for (const table of TABLES) {
     assert.match(
       schema,
-      new RegExp(`alter table public\\.${table} enable row level security`, "i"),
+      new RegExp(`alter table public\\.${table}\\s+enable row level security`, "i"),
       `${table} must enable RLS`
     );
   }
@@ -73,11 +74,21 @@ test("the browser only receives the public anon key", () => {
   const supabase = read("src/lib/supabase.js");
   assert.match(supabase, /VITE_SUPABASE_URL/);
   assert.match(supabase, /VITE_SUPABASE_ANON_KEY/);
-  assert.doesNotMatch(supabase, /SERVICE/i);
+  // Only public client values may be read from the environment.
+  assert.doesNotMatch(supabase, /SERVICE_ROLE|service_role|SUPABASE_SERVICE/);
+  const envReads = supabase.match(/import\.meta\.env\.[A-Z0-9_]+/g) || [];
+  for (const name of envReads) {
+    assert.match(name, /VITE_SUPABASE_(URL|ANON_KEY)$/);
+  }
 });
 
 test("no committed env file and no real secrets in the repo", () => {
-  assert.equal(fs.existsSync(path.join(root, ".env")), false, ".env must not be committed");
+  // A local .env may exist for development; it must never be tracked by git.
+  const gitignore = read(".gitignore");
+  assert.match(gitignore, /^\s*\.env\s*$/m, ".gitignore must ignore .env");
+  const tracked = execSync("git ls-files -- .env", { cwd: root, encoding: "utf8" }).trim();
+  assert.equal(tracked, "", ".env must not be tracked by git");
+
   const example = read(".env.example");
   assert.match(example, /VITE_SUPABASE_URL=/);
   assert.doesNotMatch(example, /eyJ[A-Za-z0-9_-]{20,}/, "example must not contain a real JWT");

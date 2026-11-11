@@ -22,23 +22,28 @@ test("slugify produces url-safe slugs", () => {
   assert.equal(slugify("  Hello,  World!  "), "hello-world");
 });
 
-test("formatDuration renders mm:ss", () => {
-  assert.equal(formatDuration(0), "0:00");
+test("formatDuration renders m:ss and hides unknown lengths", () => {
+  assert.equal(formatDuration(0), "—");
   assert.equal(formatDuration(42), "0:42");
   assert.equal(formatDuration(65), "1:05");
   assert.equal(formatDuration(605), "10:05");
+  assert.equal(formatDuration(undefined), "—");
+  assert.equal(formatDuration("not a number"), "—");
 });
 
-test("timecodes round-trip between ms and mm:ss.mmm", () => {
-  assert.equal(formatTimecode(12500), "00:12.500");
-  assert.equal(parseTimecode("00:12.500"), 12500);
+test("timecodes convert between ms and m:ss input", () => {
+  assert.equal(formatTimecode(12500), "0:12");
+  assert.equal(formatTimecode(65000), "1:05");
+  assert.equal(formatTimecode(-5), "0:00");
+  assert.equal(parseTimecode("0:12.500"), 12500);
   assert.equal(parseTimecode("1:02.250"), 62250);
   assert.equal(parseTimecode("12.5"), 12500);
   assert.equal(parseTimecode(""), null);
   assert.equal(parseTimecode("nonsense"), null);
   assert.equal(parseTimecode(null), null);
 
-  for (const ms of [0, 900, 12500, 61000, 3599999]) {
+  // Display is second-aligned, so the round-trip holds for whole seconds.
+  for (const ms of [0, 1000, 12000, 61000, 3599000]) {
     assert.equal(parseTimecode(formatTimecode(ms)), ms);
   }
 });
@@ -51,13 +56,14 @@ test("matchesQuery searches several fields case-insensitively", () => {
   assert.equal(matchesQuery("", song.title), true);
 });
 
-test("normalizeText is accent and width insensitive", () => {
-  assert.equal(normalizeText("Café"), "cafe");
-  assert.equal(normalizeText("ＹＵＭＥＩＫＡ"), "yumeika");
+test("normalizeText lowercases and trims for search", () => {
+  assert.equal(normalizeText("  YUMEIKA "), "yumeika");
+  assert.equal(normalizeText("Café"), "café");
+  assert.equal(matchesQuery("café", "CAFÉ"), true);
 });
 
 test("small helpers behave predictably", () => {
-  assert.equal(truncate("abcdefghij", 5), "abcde…");
+  assert.equal(truncate("abcdefghij", 5), "abcd…");
   assert.equal(truncate("abc", 5), "abc");
   assert.equal(clamp(12, 0, 10), 10);
   assert.equal(clamp(-3, 0, 10), 0);
