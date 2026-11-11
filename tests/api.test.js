@@ -72,20 +72,28 @@ test("status reports what is configured without leaking secret values", async ()
   assert.equal(data.ai.configured, true);
   assert.equal(data.spotify.configured, false);
   assert.equal(data.adminGate.configured, false);
+  delete process.env.AI_API_KEY;
 });
 
 test("status names the detected provider without leaking the key", async () => {
+  // No other AI key may survive from an earlier test, or the generic
+  // AI_API_KEY would win over the provider-specific one.
+  delete process.env.AI_API_KEY;
   process.env.GEMINI_API_KEY = "gemini-test-secret";
-  const response = await fetch(`${base}/api/integrations/status`);
-  const body = await response.text();
 
-  assert.equal(body.includes("gemini-test-secret"), false, "the key never leaves the server");
-  const data = JSON.parse(body);
-  assert.equal(data.ai.configured, true);
-  assert.equal(data.ai.provider, "gemini");
-  assert.equal(data.ai.keyVar, "GEMINI_API_KEY");
-  assert.ok(Array.isArray(data.ai.acceptedKeys) && data.ai.acceptedKeys.length > 5);
-  delete process.env.GEMINI_API_KEY;
+  try {
+    const response = await fetch(`${base}/api/integrations/status`);
+    const body = await response.text();
+
+    assert.equal(body.includes("gemini-test-secret"), false, "the key never leaves the server");
+    const data = JSON.parse(body);
+    assert.equal(data.ai.configured, true);
+    assert.equal(data.ai.provider, "gemini");
+    assert.equal(data.ai.keyVar, "GEMINI_API_KEY");
+    assert.ok(Array.isArray(data.ai.acceptedKeys) && data.ai.acceptedKeys.length > 5);
+  } finally {
+    delete process.env.GEMINI_API_KEY;
+  }
 });
 
 test("the study endpoint refuses to run without an admin password configured", async () => {
@@ -108,6 +116,7 @@ test("the admin gate rejects a wrong password", async () => {
 });
 
 test("a missing AI key is reported with the exact variable name", async () => {
+  delete process.env.AI_API_KEY;
   const response = await post("/api/ai/study", {
     headers: { "x-admin-password": "correct-horse" },
     body: { song: { title: "Ribbon Noose" } }
@@ -120,14 +129,18 @@ test("a missing AI key is reported with the exact variable name", async () => {
 
 test("a song without a title is rejected before any provider call", async () => {
   process.env.AI_API_KEY = "sk-test";
-  const response = await post("/api/ai/study", {
-    headers: { "x-admin-password": "correct-horse" },
-    body: { song: { title: "   " } }
-  });
-  const data = await response.json();
+  try {
+    const response = await post("/api/ai/study", {
+      headers: { "x-admin-password": "correct-horse" },
+      body: { song: { title: "   " } }
+    });
+    const data = await response.json();
 
-  assert.equal(response.status, 400);
-  assert.match(data.error, /title/i);
+    assert.equal(response.status, 400);
+    assert.match(data.error, /title/i);
+  } finally {
+    delete process.env.AI_API_KEY;
+  }
 });
 
 test("a missing Spotify key is reported with both variable names", async () => {
