@@ -198,10 +198,20 @@ export function OfflineProvider({ children }) {
       const files = manifest.files || [];
       setFileCount(files.length);
 
+      // Store the files here as well: the button must work even before the
+      // worker controls the page, and the worker reuses this same cache name.
+      const cache =
+        typeof caches === "undefined"
+          ? null
+          : await caches.open(`yumeika-shell-${manifest.version || "manual"}`);
+
       let done = 0;
       for (const file of files) {
         try {
-          await fetch(file, { cache: "reload" });
+          const fileResponse = await fetch(file, { cache: "reload" });
+          if (cache && fileResponse.ok) {
+            await cache.put(file, fileResponse.clone());
+          }
         } catch {
           /* a single missing file must not abort the whole download */
         }
