@@ -32,6 +32,12 @@ app.use(
     setHeaders(res, filePath) {
       if (filePath.includes(`${path.sep}assets${path.sep}`)) {
         res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        return;
+      }
+      // The worker and its manifest must always be revalidated, otherwise a new
+      // build could keep serving the previous offline shell.
+      if (/(sw\.js|offline-manifest\.json|manifest\.webmanifest)$/.test(filePath)) {
+        res.setHeader("Cache-Control", "no-cache");
       }
     }
   })

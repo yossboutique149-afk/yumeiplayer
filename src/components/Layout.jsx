@@ -5,6 +5,7 @@ import {
   Compass,
   Disc3,
   Disc,
+  Download,
   Heart,
   Home,
   Menu,
@@ -19,7 +20,9 @@ import {
 } from "lucide-react";
 import StarField from "./StarField.jsx";
 import PlayerBar from "./PlayerBar.jsx";
+import InstallPrompt from "./InstallPrompt.jsx";
 import { useTheme } from "../contexts/ThemeContext.jsx";
+import { useOffline } from "../contexts/OfflineContext.jsx";
 
 const NAV_ITEMS = [
   { to: "/", label: "Home", icon: Home, end: true },
@@ -31,6 +34,7 @@ const NAV_ITEMS = [
   { to: "/decode", label: "Song Decode", icon: Sparkles },
   { to: "/explore", label: "Explore", icon: Compass },
   { to: "/favorites", label: "Favorites", icon: Heart },
+  { to: "/offline", label: "Offline mode", icon: Download },
   { to: "/artist", label: "Artist Profile", icon: UserRound }
 ];
 
@@ -79,6 +83,7 @@ function NavList({ onNavigate }) {
 
 export default function Layout() {
   const { theme, toggleTheme } = useTheme();
+  const { online, canInstall, install, installed } = useOffline();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const location = useLocation();
 
@@ -122,10 +127,17 @@ export default function Layout() {
               >
                 <Menu size={18} />
               </button>
-              <span className="online-pill">Universe online</span>
+              <span className={`online-pill${online ? "" : " is-offline"}`}>
+                {online ? "Universe online" : "Offline · saved content"}
+              </span>
             </div>
 
             <div className="topbar-actions">
+              {canInstall && !installed && (
+                <button type="button" className="btn btn-sm btn-primary" onClick={install}>
+                  <Download size={15} /> Install
+                </button>
+              )}
               <button
                 type="button"
                 className="icon-btn"
@@ -172,6 +184,7 @@ export default function Layout() {
         </>
       )}
 
+      <InstallPrompt />
       <PlayerBar />
 
       <nav className="bottom-nav" aria-label="Quick navigation">
