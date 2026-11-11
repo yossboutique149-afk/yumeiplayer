@@ -171,6 +171,8 @@ const supabaseAdapter = {
   async saveAnalysis(songId, values) {
     const payload = {
       song_id: songId,
+      meaning: values.meaning || "",
+      pronunciation_guide: values.pronunciation_guide || "",
       story: values.story || "",
       verses: values.verses || "",
       metaphors: values.metaphors || "",
@@ -375,6 +377,8 @@ const localAdapter = {
     const store = readStore();
     const record = {
       song_id: songId,
+      meaning: values.meaning || "",
+      pronunciation_guide: values.pronunciation_guide || "",
       story: values.story || "",
       verses: values.verses || "",
       metaphors: values.metaphors || "",
