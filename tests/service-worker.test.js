@@ -78,12 +78,16 @@ function createHarness({ version = "testversion1" } = {}) {
     }
   };
 
+  let skipCount = 0;
+
   const self = {
     location: { origin: ORIGIN },
     addEventListener(type, handler) {
       listeners[type] = handler;
     },
-    skipWaiting: async () => {},
+    skipWaiting: async () => {
+      skipCount += 1;
+    },
     clients: { claim: async () => {} }
   };
 
@@ -106,7 +110,7 @@ function createHarness({ version = "testversion1" } = {}) {
     return promise;
   };
 
-  return { dispatch, stores, goOffline: () => (offline = true) };
+  return { dispatch, stores, goOffline: () => (offline = true), skips: () => skipCount };
 }
 
 test("the worker precaches the app, then serves it with the network off", async () => {
@@ -194,11 +198,14 @@ test("activating a new version deletes the previous caches", async () => {
 
 test("a SKIP_WAITING message lets the user apply an update immediately", async () => {
   const worker = createHarness();
-  let skipped = false;
-  const install = worker.dispatch("install");
-  await install;
+  await worker.dispatch("install");
+  const before = worker.skips();
 
-  // The message handler calls self.skipWaiting() when the UI asks for the update.
   await worker.dispatch("message", { data: { type: "SKIP_WAITING" } });
-  assert.equal(skipped, false, "no-op guard: handler ran without throwing");
+
+  assert.equal(worker.skips(), before + 1, "the waiting worker activates on request");
+
+  // Unrelated messages must not force an update.
+  await worker.dispatch("message", { data: { type: "SOMETHING_ELSE" } });
+  assert.equal(worker.skips(), before + 1);
 });
