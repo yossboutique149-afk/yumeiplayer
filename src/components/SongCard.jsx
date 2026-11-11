@@ -1,19 +1,24 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Heart, Play, Pause } from "lucide-react";
+import { Download, Heart, Play, Pause } from "lucide-react";
 import CoverArt from "./CoverArt.jsx";
 import { SampleBadge } from "./Badges.jsx";
 import { usePlayer } from "../contexts/PlayerContext.jsx";
 import { useFavorites } from "../contexts/FavoritesContext.jsx";
 import { useContent } from "../contexts/ContentContext.jsx";
 import { formatDuration } from "../lib/format.js";
+import { hasPlayableAudio } from "../lib/audioFile.js";
+import { downloadTrack } from "../lib/audioLibrary.js";
 
 export default function SongCard({ song, list = null, showAlbum = true }) {
   const { current, playing, play, toggle } = usePlayer();
   const { isFavorite, toggle: toggleFavorite } = useFavorites();
   const { albumById } = useContent();
+  const [downloaded, setDownloaded] = useState(false);
   const album = song.album_id ? albumById(song.album_id) : null;
   const isCurrent = current?.id === song.id;
   const favorite = isFavorite(song.id);
+  const playable = hasPlayableAudio(song);
 
   const handlePlay = event => {
     event.preventDefault();
@@ -23,6 +28,18 @@ export default function SongCard({ song, list = null, showAlbum = true }) {
       return;
     }
     play(song, list || [song]);
+  };
+
+  const handleDownload = async event => {
+    event.preventDefault();
+    event.stopPropagation();
+    try {
+      await downloadTrack(song);
+      setDownloaded(true);
+      setTimeout(() => setDownloaded(false), 2500);
+    } catch {
+      setDownloaded(false);
+    }
   };
 
   return (
@@ -36,7 +53,7 @@ export default function SongCard({ song, list = null, showAlbum = true }) {
           className="btn btn-icon btn-primary"
           onClick={handlePlay}
           aria-label={isCurrent && playing ? `Pause ${song.title}` : `Play ${song.title}`}
-          title={song.audio_url ? "Play" : "No audio uploaded yet"}
+          title={playable ? "Play in YUMEIKA" : "No audio file uploaded yet"}
         >
           {isCurrent && playing ? <Pause size={16} /> : <Play size={16} />}
         </button>
@@ -44,7 +61,18 @@ export default function SongCard({ song, list = null, showAlbum = true }) {
 
       <div className="song-card-tags">
         <SampleBadge show={song.is_sample} />
-        {!song.audio_url && <span className="badge">No audio</span>}
+        {!playable && <span className="badge">No audio</span>}
+        {playable && (
+          <button
+            type="button"
+            className="btn btn-icon btn-quiet"
+            onClick={handleDownload}
+            aria-label={`Download ${song.title}`}
+            title={downloaded ? "Saved" : "Download this track"}
+          >
+            <Download size={15} />
+          </button>
+        )}
         <button
           type="button"
           className={`btn btn-icon btn-quiet${favorite ? " is-active" : ""}`}

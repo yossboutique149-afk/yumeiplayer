@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
+  Download,
   ExternalLink,
   Heart,
   Music4,
@@ -22,6 +23,7 @@ import EmptyState from "../components/EmptyState.jsx";
 import { AiBadge, SampleBadge, StatusBadge } from "../components/Badges.jsx";
 import { formatDuration, formatTimecode } from "../lib/format.js";
 import { findActiveLineIndex, isKaraokeReady } from "../lib/karaoke.js";
+import { downloadTrack } from "../lib/audioLibrary.js";
 
 const TABS = [
   ["lyrics", "Lyrics"],
@@ -66,6 +68,7 @@ export default function SongDetailPage() {
   const [bundle, setBundle] = useState({ lines: [], vocabulary: [], analysis: null });
   const [bundleLoading, setBundleLoading] = useState(true);
   const autoTabbed = useRef("");
+  const [downloadState, setDownloadState] = useState("");
 
   const song = useMemo(() => songs.find(item => item.slug === slug) || null, [songs, slug]);
   const album = song?.album_id ? albumById(song.album_id) : null;
@@ -152,6 +155,17 @@ export default function SongDetailPage() {
     else play(song, albumSongs);
   };
 
+  const handleDownload = async () => {
+    setDownloadState("working");
+    try {
+      await downloadTrack(song);
+      setDownloadState("done");
+      setTimeout(() => setDownloadState(""), 2500);
+    } catch {
+      setDownloadState("");
+    }
+  };
+
   return (
     <div className="page">
       <section className="song-hero">
@@ -194,6 +208,17 @@ export default function SongDetailPage() {
 
             <button
               type="button"
+              className="btn btn-ghost"
+              onClick={handleDownload}
+              disabled={!song.audio_url}
+              title={song.audio_url ? "Download this track" : "No audio file uploaded yet"}
+            >
+              <Download size={16} />
+              {downloadState === "done" ? "Saved" : "Download"}
+            </button>
+
+            <button
+              type="button"
               className={`btn btn-ghost${favorite ? " is-active" : ""}`}
               onClick={() => toggleFavorite(song.id)}
               aria-pressed={favorite}
@@ -211,9 +236,9 @@ export default function SongDetailPage() {
 
           {!song.audio_url && song.source === "spotify" && (
             <p className="field-hint">
-              This track comes from the official Spotify catalogue, so it plays in Spotify's own
-              player instead of being copied here. Its audio player and karaoke stay disabled
-              until the studio uploads an authorised audio file.
+              This song is in the official catalogue, but its audio file has not been added to
+              YUMEIKA yet. Upload it in the Studio (Songs → Audio) and it will play and download
+              right here, inside the app.
             </p>
           )}
 
@@ -252,9 +277,21 @@ export default function SongDetailPage() {
           <div className="audio-times">
             {formatTimecode(isCurrent ? timeMs : 0)} / {totalMs ? formatTimecode(totalMs) : "—"}
           </div>
+
+          <button
+            type="button"
+            className="btn btn-icon btn-quiet"
+            onClick={handleDownload}
+            disabled={!song.audio_url}
+            aria-label={`Download ${song.title}`}
+            title="Download this track"
+          >
+            <Download size={17} />
+          </button>
         </div>
         <p className="tiny faint">
-          Original audio is played from the file the administrator uploaded to YUMEIKA storage.
+          Audio plays from the file stored in YUMEIKA, not from an external player. Use the
+          download button to save it to your device.
         </p>
       </section>
 
@@ -400,9 +437,14 @@ export default function SongDetailPage() {
               <audio controls preload="none" src={song.audio_url} className="audio-native">
                 Your browser does not support audio playback.
               </audio>
-              <a className="tiny faint" href={song.audio_url} target="_blank" rel="noreferrer noopener">
-                Open the audio file directly
-              </a>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm audio-download"
+                onClick={handleDownload}
+              >
+                <Download size={15} />
+                {downloadState === "done" ? "Saved to your device" : "Download this track"}
+              </button>
             </div>
           ) : (
             <div className="notice">
