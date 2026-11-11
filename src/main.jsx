@@ -42,6 +42,7 @@ import LyricsAdminPage from "./pages/studio/LyricsAdminPage.jsx";
 import DecodeAdminPage from "./pages/studio/DecodeAdminPage.jsx";
 import MediaAdminPage from "./pages/studio/MediaAdminPage.jsx";
 import SettingsAdminPage from "./pages/studio/SettingsAdminPage.jsx";
+import IntegrationsAdminPage from "./pages/studio/IntegrationsAdminPage.jsx";
 
 function App() {
   return (
@@ -79,6 +80,7 @@ function App() {
           <Route path="lyrics" element={<LyricsAdminPage />} />
           <Route path="decode" element={<DecodeAdminPage />} />
           <Route path="media" element={<MediaAdminPage />} />
+          <Route path="integrations" element={<IntegrationsAdminPage />} />
           <Route path="settings" element={<SettingsAdminPage />} />
         </Route>
       </Routes>

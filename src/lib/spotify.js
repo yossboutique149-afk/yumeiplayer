@@ -41,8 +41,7 @@ export function spotifyAlbumRecord(album = {}) {
     cover_glyph: (title[0] || "Y").toUpperCase(),
     description: `Imported from Spotify (${text(album.album_type, 20) || "release"}). Official links point to the platform; audio is never copied.`,
     status: "draft",
-    is_sample: false,
-    spotify_album_id: id
+    is_sample: false
   };
 }
 

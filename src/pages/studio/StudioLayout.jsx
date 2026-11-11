@@ -22,6 +22,7 @@ const LINKS = [
   ["/studio/lyrics", "Lyrics", BookOpen],
   ["/studio/decode", "Song decode", Sparkles],
   ["/studio/media", "Media", ImageIcon],
+  ["/studio/integrations", "AI & Spotify", Sparkles],
   ["/studio/settings", "Settings", Settings]
 ];
 
