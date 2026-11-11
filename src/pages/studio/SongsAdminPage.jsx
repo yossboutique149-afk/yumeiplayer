@@ -10,6 +10,7 @@ import EmptyState from "../../components/EmptyState.jsx";
 import StudyGenerator from "../../components/StudyGenerator.jsx";
 import { formatDuration, slugify } from "../../lib/format.js";
 import { isAllowedEmbed } from "../../components/EmbedFrame.jsx";
+import { uploadAudioFile } from "../../lib/audioLibrary.js";
 
 const EMPTY = {
   title: "",
@@ -118,7 +119,6 @@ export default function SongsAdminPage() {
       setBusy(false);
     }
   }
-
   return (
     <div className="stack">
       <div className="admin-head">
@@ -126,8 +126,8 @@ export default function SongsAdminPage() {
           <span className="eyebrow">Library</span>
           <h1>Songs</h1>
           <p className="muted small">
-            Uploaded audio enables karaoke. External players are embedded through the official
-            Spotify and YouTube URLs only.
+            Upload the audio file and it plays inside YUMEIKA with its own player, seek bar and
+            download button. Official Spotify and YouTube embeds stay available as extras.
           </p>
         </div>
         <button type="button" className="btn btn-primary" onClick={startNew}>
@@ -240,13 +240,16 @@ export default function SongsAdminPage() {
 
           <div className="form-grid">
             <label className="field-label">
-              Audio file URL (uploaded)
+              Audio file URL or uploaded file
               <input
                 className="input"
                 value={draft.audio_url || ""}
                 onChange={event => patch({ audio_url: event.target.value })}
-                placeholder="/sample/sample-tone.mp3"
+                placeholder="/sample/sample-tone.mp3 or https://…/track.mp3"
               />
+              <span className="field-hint">
+                This file plays and downloads inside YUMEIKA. Any direct audio URL works too.
+              </span>
             </label>
 
             <label className="field-label">
@@ -281,12 +284,15 @@ export default function SongsAdminPage() {
 
           <div className="row">
             <label className="btn btn-quiet btn-sm">
-              <Upload size={14} /> Upload audio
+              <Upload size={14} /> {busy ? "Uploading…" : "Upload audio"}
               <input
                 type="file"
                 accept="audio/*"
                 hidden
-                onChange={event => upload(event.target.files?.[0], STORAGE_BUCKETS.audio, "audio_url")}
+                onChange={event => {
+                  uploadAudio(event.target.files?.[0]);
+                  event.target.value = "";
+                }}
               />
             </label>
             <label className="btn btn-quiet btn-sm">
@@ -295,13 +301,16 @@ export default function SongsAdminPage() {
                 type="file"
                 accept="image/*"
                 hidden
-                onChange={event => upload(event.target.files?.[0], STORAGE_BUCKETS.artwork, "cover_url")}
+                onChange={event => {
+                  upload(event.target.files?.[0], STORAGE_BUCKETS.artwork, "cover_url");
+                  event.target.value = "";
+                }}
               />
             </label>
             {draft.audio_url && (
-              <a className="btn btn-ghost btn-sm" href={draft.audio_url} target="_blank" rel="noreferrer">
-                <ExternalLink size={14} /> Preview audio
-              </a>
+              <audio controls preload="none" src={draft.audio_url} className="admin-audio-preview">
+                Your browser does not support audio playback.
+              </audio>
             )}
             {draft.duration_seconds > 0 && (
               <span className="tiny faint">{formatDuration(draft.duration_seconds)}</span>
