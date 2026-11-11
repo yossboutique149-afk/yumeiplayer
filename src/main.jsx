@@ -9,6 +9,7 @@ import "./styles/admin.css";
 
 import { ThemeProvider } from "./contexts/ThemeContext.jsx";
 import { ToastProvider } from "./contexts/ToastContext.jsx";
+import { OfflineProvider } from "./contexts/OfflineContext.jsx";
 import { AuthProvider } from "./contexts/AuthContext.jsx";
 import { ContentProvider } from "./contexts/ContentContext.jsx";
 import { FavoritesProvider } from "./contexts/FavoritesContext.jsx";
@@ -29,6 +30,7 @@ import DecodePage from "./pages/DecodePage.jsx";
 import ExplorePage from "./pages/ExplorePage.jsx";
 import FavoritesPage from "./pages/FavoritesPage.jsx";
 import ArtistPage from "./pages/ArtistPage.jsx";
+import OfflinePage from "./pages/OfflinePage.jsx";
 import NotFoundPage from "./pages/NotFoundPage.jsx";
 
 import StudioLayout from "./pages/studio/StudioLayout.jsx";
@@ -58,6 +60,7 @@ function App() {
           <Route path="explore" element={<ExplorePage />} />
           <Route path="favorites" element={<FavoritesPage />} />
           <Route path="artist" element={<ArtistPage />} />
+          <Route path="offline" element={<OfflinePage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
 
@@ -87,25 +90,20 @@ createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <ThemeProvider>
       <ToastProvider>
-        <AuthProvider>
-          <ContentProvider>
-            <FavoritesProvider>
-              <PlayerProvider>
-                <App />
-              </PlayerProvider>
-            </FavoritesProvider>
-          </ContentProvider>
-        </AuthProvider>
+        <OfflineProvider>
+          <AuthProvider>
+            <ContentProvider>
+              <FavoritesProvider>
+                <PlayerProvider>
+                  <App />
+                </PlayerProvider>
+              </FavoritesProvider>
+            </ContentProvider>
+          </AuthProvider>
+        </OfflineProvider>
       </ToastProvider>
     </ThemeProvider>
   </React.StrictMode>
 );
 
-// PWA: register the offline shell only for production builds.
-if (import.meta.env.PROD && "serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {
-      /* offline support is optional; never block the app */
-    });
-  });
-}
+// The offline shell (/sw.js) is registered by OfflineProvider.
