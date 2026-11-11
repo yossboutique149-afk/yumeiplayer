@@ -52,6 +52,7 @@ export function OfflineProvider({ children }) {
   const [downloading, setDownloading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [fileCount, setFileCount] = useState(0);
+  const [cachedCount, setCachedCount] = useState(0);
   const [storage, setStorage] = useState({ usage: 0, quota: 0 });
   const registrationRef = useRef(null);
   const ios = isIosDevice();
@@ -84,32 +85,6 @@ export function OfflineProvider({ children }) {
     };
   }, []);
 
-  // The service worker only exists in the built app.
-  useEffect(() => {
-    if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return undefined;
-    let active = true;
-
-    registerServiceWorker({
-      onUpdate: registration => {
-        registrationRef.current = registration;
-        setUpdateReady(true);
-      }
-    }).then(registration => {
-      if (!active || !registration) return;
-      registrationRef.current = registration;
-      setControlled(Boolean(navigator.serviceWorker.controller));
-      navigator.serviceWorker.ready
-        .then(() => {
-          if (active) setControlled(true);
-        })
-        .catch(() => {});
-    });
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
   const refreshStorage = useCallback(async () => {
     if (!navigator.storage?.estimate) return;
     try {
@@ -120,24 +95,74 @@ export function OfflineProvider({ children }) {
     }
   }, []);
 
-  useEffect(() => {
-    refreshStorage();
-  }, [refreshStorage, controlled, savedAt]);
+  /**
+   * Reads the real Cache Storage contents. The UI must report what is actually
+   * stored on this device instead of assuming the worker already controls the
+   * page, which on a first visit it may not yet.
+   */
+  const verifyCache = useCallback(async () => {
+    if (typeof caches === "undefined") return 0;
+    try {
+      const response = await fetch("/offline-manifest.json", { cache: "no-store" });
+      const manifest = response.ok ? await response.json() : null;
+      const files = manifest?.files || [];
+      setFileCount(files.length);
 
-  // How many files the offline bundle contains (shown as "N files ready").
+      let found = 0;
+      for (const file of files) {
+        try {
+          if (await caches.match(file)) found += 1;
+        } catch {
+          /* an unreadable entry simply does not count */
+        }
+      }
+      setCachedCount(found);
+      return found;
+    } catch {
+      return 0;
+    }
+  }, []);
+
+  // The service worker only exists in the built app.
   useEffect(() => {
-    if (!controlled) return undefined;
+    if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return undefined;
     let active = true;
-    fetch("/offline-manifest.json", { cache: "no-store" })
-      .then(response => (response.ok ? response.json() : null))
-      .then(manifest => {
-        if (active && manifest?.files) setFileCount(manifest.files.length);
-      })
-      .catch(() => {});
+
+    const sync = () => {
+      if (!active) return;
+      setControlled(Boolean(navigator.serviceWorker.controller));
+      verifyCache();
+    };
+
+    navigator.serviceWorker.addEventListener("controllerchange", sync);
+
+    registerServiceWorker({
+      onUpdate: registration => {
+        registrationRef.current = registration;
+        setUpdateReady(true);
+      }
+    }).then(registration => {
+      if (!active || !registration) return;
+      registrationRef.current = registration;
+      sync();
+      navigator.serviceWorker.ready
+        .then(() => {
+          if (!active) return;
+          setControlled(true);
+          verifyCache();
+        })
+        .catch(() => {});
+    });
+
     return () => {
       active = false;
+      navigator.serviceWorker.removeEventListener("controllerchange", sync);
     };
-  }, [controlled]);
+  }, [verifyCache]);
+
+  useEffect(() => {
+    refreshStorage();
+  }, [refreshStorage, controlled, savedAt, cachedCount]);
 
   const install = useCallback(async () => {
     if (!installEvent) return false;
@@ -187,6 +212,7 @@ export function OfflineProvider({ children }) {
       const stamp = new Date().toISOString();
       write(SAVED_KEY, stamp);
       setSavedAt(stamp);
+      await verifyCache();
       await refreshStorage();
       return true;
     } catch {
@@ -194,7 +220,7 @@ export function OfflineProvider({ children }) {
     } finally {
       setDownloading(false);
     }
-  }, [refreshStorage]);
+  }, [refreshStorage, verifyCache]);
 
   const applyUpdateNow = useCallback(() => {
     applyServiceWorkerUpdate(registrationRef.current);
@@ -216,6 +242,7 @@ export function OfflineProvider({ children }) {
       downloading,
       progress,
       fileCount,
+      cachedCount,
       savedAt,
       saveAll,
       storage
@@ -234,6 +261,7 @@ export function OfflineProvider({ children }) {
       downloading,
       progress,
       fileCount,
+      cachedCount,
       savedAt,
       saveAll,
       storage
