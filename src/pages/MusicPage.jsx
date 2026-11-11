@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Search, Music4 } from "lucide-react";
 import { useContent } from "../contexts/ContentContext.jsx";
 import SongCard from "../components/SongCard.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import { matchesQuery } from "../lib/format.js";
 
 export default function MusicPage() {
-  const { songs, albums, albumById, loading } = useContent();
+  const { songs, albums, albumById, loading, spotifyArtist, spotifyCount } = useContent();
   const [query, setQuery] = useState("");
   const [albumFilter, setAlbumFilter] = useState("all");
 
@@ -30,6 +30,17 @@ export default function MusicPage() {
           </p>
         </div>
       </div>
+
+      {spotifyArtist && spotifyCount > 0 && (
+        <p className="notice">
+          <Music4 size={15} /> {spotifyCount} track{spotifyCount === 1 ? "" : "s"} come straight
+          from the official Spotify catalogue of{" "}
+          <a href={spotifyArtist.url} target="_blank" rel="noreferrer noopener">
+            {spotifyArtist.name}
+          </a>
+          . Open any of them to play it in Spotify's own player — no audio is copied.
+        </p>
+      )}
 
       <div className="toolbar">
         <label className="search-field">
