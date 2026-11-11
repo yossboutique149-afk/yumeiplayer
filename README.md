@@ -97,18 +97,35 @@ Roles are enforced in the database (RLS + trigger), not only in the UI.
 * Credentials live in environment variables. `tests/security.test.js` fails the build if a
   service-role key or a committed `.env` appears.
 
-## 7. PWA
+## 7. Offline app (installable)
 
-`public/manifest.webmanifest`, `public/sw.js` and `public/icons/icon.svg` provide an
-installable shell with an offline fallback for the app shell and sample audio. The service
-worker registers only in production builds.
+YUMEIKA is offline-first: after the first visit everything a fan needs lives on the device.
+
+* `scripts/build-sw.mjs` runs after every `vite build` and generates `dist/sw.js` plus
+  `dist/offline-manifest.json`. The precache list is read from the real build output and the
+  cache version is a hash of those files, so a new build replaces the old shell instead of
+  serving stale assets.
+* `scripts/sw-template.js` holds the worker: shell precache, navigation fallback to the cached
+  `index.html`, audio served from cache with HTTP Range support (seeking keeps working offline),
+  old-cache cleanup and `SKIP_WAITING` updates. `/api/*` and third-party players are never cached.
+* Fonts are local system stacks: `src/styles/theme.css` has no remote `@import`, so typography
+  renders with no connection.
+* `public/manifest.webmanifest` with 192/512/maskable PNG icons makes the app installable on
+  Android; on iPhone/iPad use Share → Add to Home Screen. `/offline` shows connection status,
+  storage usage, a "save all files" control with real progress and an update button.
+* `npm run build` must run before `npm start`, because the worker is generated from `dist/`.
+
+`tests/offline.test.js` checks the generated worker, the manifest and the absence of remote
+assets; `tests/service-worker.test.js` runs the worker itself against a simulated cache and
+network to prove the app shell, static assets and audio still respond with the network off.
 
 ## 8. What still needs you
 
 1. Supabase project + `schema.sql` + your admin account (section 4).
 2. The two `VITE_*` environment variables, then a rebuild.
-3. Real album artwork, audio files and lyrics you are authorised to publish.
-4. Your approval before the app is deployed publicly.
+4. Real album artwork, audio files and lyrics you are authorised to publish.
+5. Install it on your phone: open the site in Chrome → menu → *Install app*, or on iPhone
+   Safari → Share → *Add to Home Screen*. Then open `/offline` and tap *Save all files*.
 
 Not built here: payments, streaming licensing, native Android packaging (the PWA is the
 install path), and any scraping of official platforms.
