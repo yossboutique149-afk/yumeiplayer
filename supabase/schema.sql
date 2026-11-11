@@ -213,6 +213,8 @@ create table if not exists public.song_analyses (
   id               uuid primary key default gen_random_uuid(),
   song_id          uuid not null unique references public.songs (id) on delete cascade,
   story            text,
+  meaning          text,
+  pronunciation_guide text,
   verses           text,
   metaphors        text,
   symbolism        text,
@@ -224,6 +226,10 @@ create table if not exists public.song_analyses (
   disclaimer       text,
   updated_at       timestamptz not null default now()
 );
+
+-- Columns added for AI studies (meaning summary and singing guide).
+alter table public.song_analyses add column if not exists meaning text;
+alter table public.song_analyses add column if not exists pronunciation_guide text;
 
 -- --------------------------------------------------------------- favorites ---
 create table if not exists public.favorites (
