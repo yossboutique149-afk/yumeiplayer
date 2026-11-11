@@ -22,13 +22,13 @@ test("sortLines orders by line_index without mutating the input", () => {
   assert.equal(lines[0].id, "c");
 });
 
-test("hasTiming requires both start and end on every line", () => {
-  assert.equal(hasTiming(lines), true);
-  assert.equal(hasTiming([{ start_ms: 0, end_ms: 100 }]), true);
-  assert.equal(hasTiming([{ start_ms: 0, end_ms: null }]), false);
-  assert.equal(hasTiming([{ start_ms: 0 }]), false);
-  assert.equal(hasTiming([]), false);
-  assert.equal(hasTiming(null), false);
+test("hasTiming validates a single line's start and end", () => {
+  assert.equal(hasTiming(lines[0]), true);
+  assert.equal(hasTiming({ start_ms: 0, end_ms: 100 }), true);
+  assert.equal(hasTiming({ start_ms: 0, end_ms: null }), false);
+  assert.equal(hasTiming({ start_ms: 0 }), false);
+  assert.equal(hasTiming({ start_ms: 500, end_ms: 500 }), false);
+  assert.ok(!hasTiming(null));
 });
 
 test("karaoke is only ready for an uploaded audio file with timed lines", () => {
