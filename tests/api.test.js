@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { once } from "node:events";
 
 import { createApp } from "../server.js";
+import { AI_KEY_VARS } from "../src/lib/aiProviders.js";
 
 /**
  * These tests exercise the real Express app without any provider key: they
@@ -10,11 +11,14 @@ import { createApp } from "../server.js";
  * exact environment variable names, instead of pretending the call worked.
  */
 
+// Every variable the server can read, so a developer machine with real keys
+// never changes the outcome of these tests.
 const MANAGED = [
   "ADMIN_PASSWORD",
-  "AI_API_KEY",
   "AI_MODEL",
   "AI_BASE_URL",
+  "AI_PROVIDER",
+  ...AI_KEY_VARS,
   "SPOTIFY_CLIENT_ID",
   "SPOTIFY_CLIENT_SECRET",
   "SPOTIFY_ARTIST_ID"
@@ -68,6 +72,20 @@ test("status reports what is configured without leaking secret values", async ()
   assert.equal(data.ai.configured, true);
   assert.equal(data.spotify.configured, false);
   assert.equal(data.adminGate.configured, false);
+});
+
+test("status names the detected provider without leaking the key", async () => {
+  process.env.GEMINI_API_KEY = "gemini-test-secret";
+  const response = await fetch(`${base}/api/integrations/status`);
+  const body = await response.text();
+
+  assert.equal(body.includes("gemini-test-secret"), false, "the key never leaves the server");
+  const data = JSON.parse(body);
+  assert.equal(data.ai.configured, true);
+  assert.equal(data.ai.provider, "gemini");
+  assert.equal(data.ai.keyVar, "GEMINI_API_KEY");
+  assert.ok(Array.isArray(data.ai.acceptedKeys) && data.ai.acceptedKeys.length > 5);
+  delete process.env.GEMINI_API_KEY;
 });
 
 test("the study endpoint refuses to run without an admin password configured", async () => {

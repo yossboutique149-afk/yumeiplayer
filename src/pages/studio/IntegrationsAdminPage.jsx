@@ -192,7 +192,11 @@ export default function IntegrationsAdminPage() {
             <StatusRow
               label="AI writer"
               ok={Boolean(status.ai?.configured)}
-              detail={status.ai?.configured ? status.ai?.model : "AI_API_KEY"}
+              detail={
+                status.ai?.configured
+                  ? `${status.ai?.label || status.ai?.provider || "AI"} · ${status.ai?.model}`
+                  : "no provider key"
+              }
             />
             <StatusRow
               label="Studio gate"
@@ -200,6 +204,20 @@ export default function IntegrationsAdminPage() {
               detail={status.adminGate?.configured ? "configured" : "ADMIN_PASSWORD"}
             />
           </div>
+        )}
+
+        {status && !status.ai?.configured && (
+          <p className="tiny faint">
+            Any one of these keys works, no other setting needed:{" "}
+            <code>{(status.ai?.acceptedKeys || []).join(", ")}</code>.{" "}
+            <code>AI_API_KEY</code> means any OpenAI-compatible endpoint; add{" "}
+            <code>AI_BASE_URL</code> / <code>AI_MODEL</code> to point it at a gateway or a specific model.
+          </p>
+        )}
+        {status?.ai?.configured && status.ai.keyVar && status.ai.keyVar !== "AI_API_KEY" && (
+          <p className="tiny faint">
+            Detected from <code>{status.ai.keyVar}</code>. The key itself never leaves the server.
+          </p>
         )}
       </section>
 
