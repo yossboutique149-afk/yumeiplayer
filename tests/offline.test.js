@@ -100,6 +100,14 @@ test("the offline page, install prompt and worker are wired into the app", () =>
   assert.match(layout, /InstallPrompt/);
 });
 
+test("the save-all button writes the files into the app cache itself", () => {
+  const source = read("src/contexts/OfflineContext.jsx");
+  assert.match(source, /caches\.open\(/);
+  assert.match(source, /cache\.put\(/);
+  assert.match(source, /yumeika-shell-/);
+  assert.match(source, /cachedCount/);
+});
+
 test("index.html links the manifest and loads nothing from another origin", () => {
   const html = read("index.html");
   assert.match(html, /rel="manifest"/);
