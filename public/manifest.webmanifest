@@ -1,7 +1,7 @@
 {
   "name": "YUMEIKA — The Music Universe",
   "short_name": "YUMEIKA",
-  "description": "A dreamlike music universe for the virtual artist Yumei (ka)Waii.",
+  "description": "Offline-first fan app for the virtual artist Yumei (ka)Waii: albums, lyrics, translations, pronunciation, song decode and sing-along — installed on your phone, usable without internet.",
   "id": "/",
   "start_url": "/",
   "scope": "/",
@@ -13,6 +13,7 @@
   "lang": "en",
   "dir": "ltr",
   "categories": ["music", "entertainment"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icons/icon-192.png",
@@ -40,8 +41,9 @@
     }
   ],
   "shortcuts": [
-    { "name": "Music", "url": "/music" },
-    { "name": "Lyrics", "url": "/lyrics" },
-    { "name": "Sing With Yumei", "url": "/sing" }
+    { "name": "Music", "short_name": "Music", "url": "/music" },
+    { "name": "Lyrics", "short_name": "Lyrics", "url": "/lyrics" },
+    { "name": "Favorites", "short_name": "Saved", "url": "/favorites" },
+    { "name": "Offline mode", "short_name": "Offline", "url": "/offline" }
   ]
 }

@@ -46,7 +46,19 @@ export function buildServiceWorker(distDir = path.join(HERE, "..", "dist")) {
   const output = path.join(distDir, "sw.js");
   fs.writeFileSync(output, source, "utf8");
 
-  return { version, files, output, bytes: Buffer.byteLength(source) };
+  // The page uses this list to show real download progress in "Offline mode".
+  const manifest = {
+    version,
+    generatedAt: new Date().toISOString(),
+    files
+  };
+  fs.writeFileSync(
+    path.join(distDir, "offline-manifest.json"),
+    JSON.stringify(manifest, null, 2),
+    "utf8"
+  );
+
+  return { version, files, output, manifest, bytes: Buffer.byteLength(source) };
 }
 
 const isCli = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);

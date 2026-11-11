@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500;600;700&family=Noto+Serif+JP:wght@400;600&display=swap");
+/* No remote font imports: the app must render identically with no network. */
 
 /* ------------------------------------------------------------------ *
  * Design tokens
@@ -35,9 +35,9 @@
   --radius-xl: 34px;
   --sidebar-w: 268px;
   --topbar-h: 68px;
-  --font-display: "Cormorant Garamond", "Noto Serif JP", Georgia, serif;
-  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-jp: "Noto Serif JP", "Cormorant Garamond", serif;
+  --font-display: "Cormorant Garamond", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+  --font-body: "Inter", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-jp: "Hiragino Mincho ProN", "Yu Mincho", YuMincho, "Noto Serif JP", "MS PMincho", serif;
   --transition: 200ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
