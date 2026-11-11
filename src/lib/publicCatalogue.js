@@ -52,14 +52,16 @@ export function slugifyTrack(value) {
 
 function pickCover(entity) {
   const images = entity?.visualIdentity?.image;
-  const list = Array.isArray(images)
-    ? images.filter(image => image && typeof image.url === "string")
-    : images && typeof images.url === "string"
-      ? [images]
-      : [];
-  if (!list.length) return "";
-  const widest = [...list].sort((a, b) => (Number(b.width) || 0) - (Number(a.width) || 0))[0];
-  return https(widest.url);
+  const list = Array.isArray(images) ? images : images ? [images] : [];
+
+  // Validate the scheme first: an insecure or malformed entry must never win
+  // over a usable https cover just because it claims a larger width.
+  const usable = list
+    .map(image => ({ url: https(image?.url), width: Number(image?.width) || 0 }))
+    .filter(image => image.url);
+
+  if (!usable.length) return "";
+  return usable.sort((a, b) => b.width - a.width)[0].url;
 }
 
 /**
