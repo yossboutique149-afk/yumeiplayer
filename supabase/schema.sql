@@ -106,6 +106,7 @@ create table if not exists public.songs (
                     check (status in ('draft', 'published')),
   is_sample         boolean not null default false,
   cover_url         text,
+  audio_url         text,
   description       text,
   credits           text,
   spotify_embed_url text,
@@ -198,8 +199,10 @@ create table if not exists public.vocabulary (
   song_id    uuid not null references public.songs (id) on delete cascade,
   term       text not null,
   reading    text,
+  romaji     text,
   meaning    text,
   notes      text,
+  line_index integer,
   created_at timestamptz not null default now()
 );
 
