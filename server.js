@@ -22,6 +22,13 @@ import {
   readAIResponse,
   resolveAIProvider
 } from "./src/lib/aiProviders.js";
+import {
+  ALLOWED_AUDIO_EXT,
+  MAX_AUDIO_BYTES,
+  isAllowedAudio,
+  mimeForName,
+  sanitizeFilename
+} from "./src/lib/audioFile.js";
 
 dotenv.config();
 
@@ -195,7 +202,13 @@ async function requestStudy({ song, language, notes }) {
 
 export function createApp() {
   const app = express();
-  app.use(express.json({ limit: "1mb" }));
+
+  /* Audio uploads carry a base64 file, so that one route parses its own body. */
+  const smallJson = express.json({ limit: "1mb" });
+  app.use((req, res, next) => {
+    if (req.path === "/api/audio" && req.method === "POST") return next();
+    return smallJson(req, res, next);
+  });
 
   app.get("/api/health", (req, res) => {
     res.json({ status: "online", service: "YUMEIKA API" });
@@ -382,6 +395,138 @@ export function createApp() {
     } catch (error) {
       res.status(502).json({ error: error.message || "Study generation failed." });
     }
+  });
+
+  /* ---------------------------------------------------------------- *
+   * Audio library — the app plays its own files
+   * ---------------------------------------------------------------- */
+  const audioDir = path.join(__dirname, "data/audio");
+
+  function ensureAudioDir() {
+    try {
+      fs.mkdirSync(audioDir, { recursive: true });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function listAudioFiles() {
+    try {
+      return fs
+        .readdirSync(audioDir)
+        .filter(name => isAllowedAudio(name))
+        .map(name => {
+          const stat = fs.statSync(path.join(audioDir, name));
+          return {
+            name,
+            url: `/audio/${encodeURIComponent(name)}`,
+            size: stat.size,
+            modified: stat.mtime.toISOString()
+          };
+        })
+        .sort((a, b) => String(b.modified).localeCompare(String(a.modified)));
+    } catch {
+      return [];
+    }
+  }
+
+  function decodeAudioPayload(data) {
+    const raw = String(data || "");
+    if (!raw) return null;
+    const base64 = raw.startsWith("data:") ? raw.slice(raw.indexOf(",") + 1) : raw;
+    if (!/^[A-Za-z0-9+/=\s]+$/.test(base64)) return null;
+    const buffer = Buffer.from(base64, "base64");
+    return buffer.length ? buffer : null;
+  }
+
+  /** Public list of stored files so the Studio can reuse an existing upload. */
+  app.get("/api/audio", (req, res) => {
+    res.json({
+      files: listAudioFiles(),
+      maxBytes: MAX_AUDIO_BYTES,
+      extensions: ALLOWED_AUDIO_EXT
+    });
+  });
+
+  /**
+   * POST /api/audio
+   *
+   * Stores an uploaded track on the server and returns the URL the player and
+   * the download button use. Admin only: visitors can stream and download, but
+   * never add or replace files.
+   */
+  app.post("/api/audio", adminGate, express.json({ limit: "40mb" }), (req, res) => {
+    const name = sanitizeFilename(req.body?.filename || "track.mp3");
+    if (!isAllowedAudio(name, req.body?.mime)) {
+      return res.status(400).json({
+        error: `Unsupported audio type. Allowed: ${ALLOWED_AUDIO_EXT.join(", ")}`
+      });
+    }
+
+    const buffer = decodeAudioPayload(req.body?.data);
+    if (!buffer) {
+      return res.status(400).json({ error: "The audio file could not be read." });
+    }
+    if (buffer.length > MAX_AUDIO_BYTES) {
+      return res.status(413).json({
+        error: `That file is larger than ${Math.round(MAX_AUDIO_BYTES / (1024 * 1024))} MB.`
+      });
+    }
+    if (!ensureAudioDir()) {
+      return res.status(503).json({ error: "The server cannot store audio files right now." });
+    }
+
+    const stored = `${Date.now()}-${name}`;
+    try {
+      fs.writeFileSync(path.join(audioDir, stored), buffer);
+    } catch (error) {
+      return res.status(503).json({ error: error.message || "The audio file could not be saved." });
+    }
+
+    return res.status(201).json({
+      ok: true,
+      name: stored,
+      url: `/audio/${encodeURIComponent(stored)}`,
+      size: buffer.length
+    });
+  });
+
+  app.delete("/api/audio/:name", adminGate, (req, res) => {
+    const name = sanitizeFilename(req.params.name);
+    const target = path.join(audioDir, name);
+    if (!target.startsWith(audioDir) || !fs.existsSync(target)) {
+      return res.status(404).json({ error: "Audio file not found." });
+    }
+    try {
+      fs.unlinkSync(target);
+      return res.json({ ok: true });
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
+   * GET /audio/:name
+   *
+   * Streams the stored track. Accept-Ranges lets the browser seek inside a
+   * song, and ?download=<filename> turns the same URL into a real download.
+   */
+  app.get("/audio/:name", (req, res) => {
+    const name = sanitizeFilename(req.params.name);
+    if (!isAllowedAudio(name)) return res.status(404).send("Not found");
+    const target = path.join(audioDir, name);
+    if (!target.startsWith(audioDir) || !fs.existsSync(target)) {
+      return res.status(404).send("Not found");
+    }
+    res.type(mimeForName(name));
+    res.set("Accept-Ranges", "bytes");
+    res.set("Cache-Control", "public, max-age=3600");
+    if (req.query.download !== undefined) {
+      const label = sanitizeFilename(String(req.query.download || name)) || name;
+      res.set("Content-Disposition", `attachment; filename="${label}"`);
+    }
+    return res.sendFile(target);
   });
 
   const dist = path.join(__dirname, "dist");
