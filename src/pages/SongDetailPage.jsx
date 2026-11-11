@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   ExternalLink,
@@ -65,6 +65,7 @@ export default function SongDetailPage() {
   const [tab, setTab] = useState("lyrics");
   const [bundle, setBundle] = useState({ lines: [], vocabulary: [], analysis: null });
   const [bundleLoading, setBundleLoading] = useState(true);
+  const autoTabbed = useRef("");
 
   const song = useMemo(() => songs.find(item => item.slug === slug) || null, [songs, slug]);
   const album = song?.album_id ? albumById(song.album_id) : null;
@@ -100,6 +101,17 @@ export default function SongDetailPage() {
       active = false;
     };
   }, [song?.id, isStaff]);
+
+  // A catalogue track with no uploaded audio and no published lyrics has
+  // nothing to show in the Lyrics tab, so open the official player instead.
+  useEffect(() => {
+    if (!song || bundleLoading) return;
+    if (autoTabbed.current === song.id) return;
+    autoTabbed.current = song.id;
+    if (!song.audio_url && !bundle.lines.length && (song.spotify_embed_url || song.youtube_embed_url)) {
+      setTab("media");
+    }
+  }, [song, bundleLoading, bundle.lines.length]);
 
   if (loading) {
     return (
@@ -150,6 +162,7 @@ export default function SongDetailPage() {
             <StatusBadge status={song.status} />
             <SampleBadge show={song.is_sample} />
             {song.release_type === "single" && <span className="badge">Single</span>}
+            {song.source === "spotify" && <span className="badge">Spotify catalogue</span>}
           </div>
 
           <h1 className="song-hero-title">{song.title}</h1>
@@ -196,7 +209,15 @@ export default function SongDetailPage() {
             )}
           </div>
 
-          {!song.audio_url && (
+          {!song.audio_url && song.source === "spotify" && (
+            <p className="field-hint">
+              This track comes from the official Spotify catalogue, so it plays in Spotify's own
+              player instead of being copied here. Its audio player and karaoke stay disabled
+              until the studio uploads an authorised audio file.
+            </p>
+          )}
+
+          {!song.audio_url && song.source !== "spotify" && (
             <p className="field-hint">
               No audio file has been uploaded for this song, so the player stays disabled and
               karaoke cannot synchronise.
