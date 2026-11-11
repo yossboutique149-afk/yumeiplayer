@@ -1,0 +1,86 @@
+
+/* ---------------------------------------------------------------- *
+ * In-app audio: seek, volume, download
+ * ---------------------------------------------------------------- */
+.spin {
+  animation: yumeika-spin 1s linear infinite;
+}
+
+@keyframes yumeika-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.mini-seek {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: #3a2c46;
+  cursor: pointer;
+}
+
+.mini-seek::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #e3bce9;
+  border: 0;
+}
+
+.mini-seek::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 0;
+  border-radius: 50%;
+  background: #e3bce9;
+}
+
+.mini-volume {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 74px;
+  height: 4px;
+  border-radius: 999px;
+  background: #3a2c46;
+  cursor: pointer;
+}
+
+.mini-volume::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #e3bce9;
+  border: 0;
+}
+
+.mini-volume::-moz-range-thumb {
+  width: 11px;
+  height: 11px;
+  border: 0;
+  border-radius: 50%;
+  background: #e3bce9;
+}
+
+.audio-download {
+  margin-top: 10px;
+}
+
+.admin-audio-preview {
+  width: 100%;
+  max-width: 340px;
+  height: 38px;
+  border-radius: 8px;
+}
+
+@media (max-width: 800px) {
+  .mini-volume,
+  .volume-button {
+    display: none;
+  }
+}
