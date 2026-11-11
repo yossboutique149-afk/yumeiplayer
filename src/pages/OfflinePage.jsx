@@ -38,6 +38,7 @@ export default function OfflinePage() {
     downloading,
     progress,
     fileCount,
+    cachedCount,
     savedAt,
     saveAll,
     storage
@@ -70,9 +71,13 @@ export default function OfflinePage() {
           <Smartphone size={14} />
           {installed ? "Installed on this device" : "Running in the browser"}
         </span>
-        <span className={`status-chip ${controlled ? "is-good" : ""}`}>
+        <span className={`status-chip ${cachedCount ? "is-good" : ""}`}>
           <HardDrive size={14} />
-          {controlled ? `${fileCount || "All"} files cached` : "Cache preparing"}
+          {cachedCount
+            ? `${cachedCount} of ${fileCount || cachedCount} files cached`
+            : controlled
+              ? "Cache preparing"
+              : "Not stored yet"}
         </span>
       </div>
 
