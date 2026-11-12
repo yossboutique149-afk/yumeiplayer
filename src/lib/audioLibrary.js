@@ -1,7 +1,13 @@
 import { repo } from "./dataClient.js";
-import { isSupabaseConfigured, STORAGE_BUCKETS } from "./supabase.js";
+import { supabase, isSupabaseConfigured, STORAGE_BUCKETS } from "./supabase.js";
 import { getServerPassword } from "./integrations.js";
-import { MAX_AUDIO_BYTES, downloadFilename, isAllowedAudio } from "./audioFile.js";
+import {
+  MAX_AUDIO_BYTES,
+  backupFilename,
+  downloadFilename,
+  isAllowedAudio,
+  parseAudioBackup
+} from "./audioFile.js";
 
 /**
  * Audio library used by the Studio and by the download buttons.
@@ -64,9 +70,21 @@ export async function uploadAudioFile(file) {
 
 export async function listAudioFiles() {
   if (isSupabaseConfigured) {
-    const { data, error } = await repo.listAudio?.() ?? {};
-    if (error) throw new Error(error);
-    return data || [];
+    const { data, error } = await supabase.storage
+      .from(STORAGE_BUCKETS.audio)
+      .list("audio", { limit: 200, sortBy: { column: "created_at", order: "desc" } });
+    if (error) throw new Error(error.message);
+    return (data || []).map(file => {
+      const { data: published } = supabase.storage
+        .from(STORAGE_BUCKETS.audio)
+        .getPublicUrl(`audio/${file.name}`);
+      return {
+        name: file.name,
+        url: published?.publicUrl || "",
+        size: file.metadata?.size || 0,
+        modified: file.updated_at || file.created_at || ""
+      };
+    });
   }
   const response = await fetch("/api/audio");
   if (!response.ok) return [];
@@ -76,6 +94,16 @@ export async function listAudioFiles() {
 
 export async function deleteAudioFile(name) {
   if (!name) return false;
+
+  /* A Supabase-hosted track is a full URL: delete it from its bucket. */
+  if (isSupabaseConfigured && /^https?:\/\//i.test(name)) {
+    const path = supabasePathFromUrl(name, STORAGE_BUCKETS.audio);
+    if (!path) throw new Error("That audio file is not stored in the YUMEIKA bucket.");
+    const { error } = await supabase.storage.from(STORAGE_BUCKETS.audio).remove([path]);
+    if (error) throw new Error(error.message);
+    return true;
+  }
+
   const response = await fetch(`/api/audio/${encodeURIComponent(name)}`, {
     method: "DELETE",
     headers: { "x-admin-password": getServerPassword() }

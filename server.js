@@ -25,6 +25,7 @@ import {
 import {
   ALLOWED_AUDIO_EXT,
   MAX_AUDIO_BYTES,
+  backupFilename,
   isAllowedAudio,
   mimeForName,
   sanitizeFilename
@@ -203,10 +204,11 @@ async function requestStudy({ song, language, notes }) {
 export function createApp() {
   const app = express();
 
-  /* Audio uploads carry a base64 file, so that one route parses its own body. */
+  /* Audio uploads and restores carry base64 files, so those routes parse their own body. */
   const smallJson = express.json({ limit: "1mb" });
+  const largeBodyRoutes = new Set(["/api/audio", "/api/audio/restore"]);
   app.use((req, res, next) => {
-    if (req.path === "/api/audio" && req.method === "POST") return next();
+    if (req.method === "POST" && largeBodyRoutes.has(req.path)) return next();
     return smallJson(req, res, next);
   });
 
@@ -504,6 +506,82 @@ export function createApp() {
     } catch (error) {
       return res.status(500).json({ error: error.message });
     }
+  });
+
+  /**
+   * GET /api/audio/backup
+   *
+   * Admin only. A deployed container is replaced on every redeploy, so the
+   * Studio downloads one JSON file with every stored track and can put the
+   * whole library back with a single click.
+   */
+  app.get("/api/audio/backup", adminGate, (req, res) => {
+    ensureAudioDir();
+
+    const files = [];
+    listAudioFiles().forEach(entry => {
+      try {
+        const data = fs.readFileSync(path.join(audioDir, entry.name)).toString("base64");
+        files.push({ name: entry.name, size: entry.size, mime: mimeForName(entry.name), data });
+      } catch {
+        /* a file that disappeared while listing is simply left out */
+      }
+    });
+
+    const createdAt = new Date().toISOString();
+    res.set("Content-Disposition", `attachment; filename="${backupFilename(createdAt)}"`);
+    res.json({
+      app: "yumeika-audio-backup",
+      version: 1,
+      createdAt,
+      totalBytes: files.reduce((sum, file) => sum + file.size, 0),
+      files
+    });
+  });
+
+  /**
+   * POST /api/audio/restore
+   *
+   * Admin only. Writes the tracks of a previous backup back under their
+   * original names, so the audio URLs already saved on the songs keep
+   * working without editing anything.
+   */
+  app.post("/api/audio/restore", adminGate, express.json({ limit: "120mb" }), (req, res) => {
+    const incoming = Array.isArray(req.body?.files) ? req.body.files : [];
+    if (!incoming.length) {
+      return res.status(400).json({ error: "That backup file contains no audio." });
+    }
+    if (!ensureAudioDir()) {
+      return res.status(503).json({ error: "The server cannot store audio files right now." });
+    }
+
+    const restored = [];
+    const skipped = [];
+
+    incoming.slice(0, 300).forEach(entry => {
+      const name = sanitizeFilename(String(entry?.name || ""));
+      if (!name || !isAllowedAudio(name)) {
+        skipped.push({ name: String(entry?.name || ""), reason: "unsupported type" });
+        return;
+      }
+      const buffer = decodeAudioPayload(entry?.data);
+      if (!buffer) {
+        skipped.push({ name, reason: "unreadable audio data" });
+        return;
+      }
+      if (buffer.length > MAX_AUDIO_BYTES) {
+        skipped.push({ name, reason: "larger than the audio limit" });
+        return;
+      }
+      try {
+        fs.writeFileSync(path.join(audioDir, name), buffer);
+        restored.push({ name, url: `/audio/${encodeURIComponent(name)}`, size: buffer.length });
+      } catch (error) {
+        skipped.push({ name, reason: error.message || "could not be written" });
+      }
+    });
+
+    return res.json({ ok: true, restored, skipped, total: restored.length });
   });
 
   /**
