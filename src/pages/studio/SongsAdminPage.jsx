@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ExternalLink, Plus, Save, Trash2, Upload, X } from "lucide-react";
+import { Download, ExternalLink, Plus, Save, Trash2, Upload, X } from "lucide-react";
 import { repo } from "../../lib/dataClient.js";
 import { STORAGE_BUCKETS } from "../../lib/supabase.js";
 import { useContent } from "../../contexts/ContentContext.jsx";
@@ -10,7 +10,7 @@ import EmptyState from "../../components/EmptyState.jsx";
 import StudyGenerator from "../../components/StudyGenerator.jsx";
 import { formatDuration, slugify } from "../../lib/format.js";
 import { isAllowedEmbed } from "../../components/EmbedFrame.jsx";
-import { uploadAudioFile } from "../../lib/audioLibrary.js";
+import { downloadAudioBackup, restoreAudioBackup, uploadAudioFile } from "../../lib/audioLibrary.js";
 
 const EMPTY = {
   title: "",
@@ -36,6 +36,7 @@ export default function SongsAdminPage() {
   const { success, error: toastError, info } = useToast();
   const [draft, setDraft] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [backupBusy, setBackupBusy] = useState(false);
   const [linksText, setLinksText] = useState("[]");
 
   function edit(song) {
@@ -119,6 +120,40 @@ export default function SongsAdminPage() {
       setBusy(false);
     }
   }
+
+  async function saveBackup() {
+    setBackupBusy(true);
+    try {
+      const result = await downloadAudioBackup();
+      success(
+        result.count
+          ? `Backup saved: ${result.count} track${result.count === 1 ? "" : "s"} in ${result.filename}.`
+          : `Backup saved (${result.filename}). There is no uploaded audio yet.`
+      );
+    } catch (err) {
+      toastError(err.message || "The audio backup could not be created.");
+    } finally {
+      setBackupBusy(false);
+    }
+  }
+
+  async function restoreBackup(file) {
+    if (!file) return;
+    setBackupBusy(true);
+    try {
+      const result = await restoreAudioBackup(await file.text());
+      await refresh();
+      const skipped = result.skipped?.length || 0;
+      success(
+        `Restored ${result.total || 0} track${result.total === 1 ? "" : "s"}` +
+          (skipped ? `, ${skipped} skipped.` : ".")
+      );
+    } catch (err) {
+      toastError(err.message || "The audio backup could not be restored.");
+    } finally {
+      setBackupBusy(false);
+    }
+  }
   return (
     <div className="stack">
       <div className="admin-head">
@@ -133,6 +168,41 @@ export default function SongsAdminPage() {
         <button type="button" className="btn btn-primary" onClick={startNew}>
           <Plus size={15} /> New song
         </button>
+      </div>
+
+      <div className="admin-card stack">
+        <div className="row between">
+          <div>
+            <h2>Audio library backup</h2>
+            <p className="muted small">
+              Uploaded tracks live on this server and are replaced when the app is redeployed.
+              Download the backup now and restore it here afterwards: every song keeps its audio
+              without editing anything.
+            </p>
+          </div>
+          <div className="row">
+            <button
+              type="button"
+              className="btn btn-quiet"
+              onClick={saveBackup}
+              disabled={backupBusy}
+            >
+              <Download size={15} /> {backupBusy ? "Working…" : "Download audio backup"}
+            </button>
+            <label className="btn btn-quiet">
+              <Upload size={15} /> Restore backup
+              <input
+                type="file"
+                accept="application/json,.json"
+                hidden
+                onChange={event => {
+                  restoreBackup(event.target.files?.[0]);
+                  event.target.value = "";
+                }}
+              />
+            </label>
+          </div>
+        </div>
       </div>
 
       {draft && (
