@@ -109,3 +109,46 @@ export function hasPlayableAudio(song) {
     /^https?:\/\//i.test(value)
   );
 }
+
+/** Readable filename for the Studio's audio backup download. */
+export function backupFilename(date = new Date()) {
+  const stamp = new Date(date);
+  const iso = Number.isNaN(stamp.getTime()) ? new Date().toISOString() : stamp.toISOString();
+  return `yumeika-audio-backup-${iso.slice(0, 10)}.json`;
+}
+
+/**
+ * Validates a backup produced by GET /api/audio/backup before restoring it, so
+ * a wrong or half-written file never touches the library.
+ */
+export function parseAudioBackup(input) {
+  let payload = input;
+
+  if (typeof input === "string") {
+    try {
+      payload = JSON.parse(input);
+    } catch {
+      throw new Error("That file is not a YUMEIKA audio backup.");
+    }
+  }
+
+  if (!payload || typeof payload !== "object" || !Array.isArray(payload.files)) {
+    throw new Error("That file is not a YUMEIKA audio backup.");
+  }
+
+  const files = payload.files.filter(
+    file => file && typeof file.name === "string" && typeof file.data === "string" && file.data
+  );
+
+  if (!files.length) {
+    throw new Error("The backup contains no audio files.");
+  }
+
+  return {
+    app: payload.app || "yumeika-audio-backup",
+    createdAt: payload.createdAt || "",
+    files,
+    count: files.length,
+    totalBytes: files.reduce((sum, file) => sum + (Number(file.size) || 0), 0)
+  };
+}

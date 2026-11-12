@@ -39,3 +39,12 @@ export function canManage(role) {
 export function canDelete(role) {
   return role === "admin";
 }
+
+/** Object path inside a bucket, taken from one of its public URLs. */
+export function supabasePathFromUrl(url, bucket) {
+  const value = String(url || "");
+  const marker = `/object/public/${bucket}/`;
+  const index = value.indexOf(marker);
+  if (index < 0) return "";
+  return decodeURIComponent(value.slice(index + marker.length).split("?")[0]);
+}

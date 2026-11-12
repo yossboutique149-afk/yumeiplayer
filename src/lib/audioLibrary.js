@@ -1,5 +1,5 @@
 import { repo } from "./dataClient.js";
-import { supabase, isSupabaseConfigured, STORAGE_BUCKETS } from "./supabase.js";
+import { supabase, isSupabaseConfigured, STORAGE_BUCKETS, supabasePathFromUrl } from "./supabase.js";
 import { getServerPassword } from "./integrations.js";
 import {
   MAX_AUDIO_BYTES,
@@ -159,4 +159,53 @@ export async function downloadTrack(song) {
     anchor.remove();
     return filename;
   }
+}
+
+/** Downloads the whole uploaded audio library as one JSON file (admin only). */
+export async function downloadAudioBackup() {
+  const response = await fetch("/api/audio/backup", {
+    headers: { "x-admin-password": getServerPassword() }
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || "The audio backup could not be created.");
+  }
+
+  const filename = backupFilename(payload.createdAt || new Date());
+  const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 5000);
+
+  return {
+    filename,
+    count: Array.isArray(payload.files) ? payload.files.length : 0,
+    bytes: Number(payload.totalBytes) || 0
+  };
+}
+
+/** Puts a previous backup back on the server, keeping the original filenames. */
+export async function restoreAudioBackup(input) {
+  const backup = parseAudioBackup(input);
+
+  const response = await fetch("/api/audio/restore", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-admin-password": getServerPassword()
+    },
+    body: JSON.stringify({ files: backup.files })
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || "The audio backup could not be restored.");
+  }
+  return payload;
 }
