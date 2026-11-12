@@ -158,3 +158,84 @@ test("unknown api routes are not swallowed by the single page app", async () => 
   const response = await fetch(`${base}/api/does-not-exist`);
   assert.equal(response.status, 404);
 });
+
+test("the audio backup and restore endpoints require the admin password", async () => {
+  process.env.ADMIN_PASSWORD = "correct-horse";
+
+  const backup = await fetch(`${base}/api/audio/backup`);
+  assert.equal(backup.status, 401);
+
+  const restore = await post("/api/audio/restore", { body: { files: [] } });
+  assert.equal(restore.status, 401);
+});
+
+test("restore refuses a backup without audio files", async () => {
+  process.env.ADMIN_PASSWORD = "correct-horse";
+  const response = await post("/api/audio/restore", {
+    headers: { "x-admin-password": "correct-horse" },
+    body: { files: [] }
+  });
+  const data = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.match(data.error, /no audio/i);
+});
+
+test("restore skips entries that are not playable audio", async () => {
+  process.env.ADMIN_PASSWORD = "correct-horse";
+  const response = await post("/api/audio/restore", {
+    headers: { "x-admin-password": "correct-horse" },
+    body: { files: [{ name: "notes.txt", data: "aGVsbG8=" }] }
+  });
+  const data = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(data.total, 0);
+  assert.equal(data.skipped.length, 1);
+  assert.match(data.skipped[0].reason, /unsupported/i);
+});
+
+test("a restored track comes back in the backup and plays again", async () => {
+  process.env.ADMIN_PASSWORD = "correct-horse";
+  const headers = { "x-admin-password": "correct-horse" };
+  const name = `verify-restore-${Date.now()}.mp3`;
+  const base64 = Buffer.from("ID3\u0004\u0000\u0000\u0000\u0000\u0000\u0000", "binary").toString(
+    "base64"
+  );
+
+  try {
+    const restore = await post("/api/audio/restore", {
+      headers,
+      body: { files: [{ name, data: base64 }] }
+    });
+    const restored = await restore.json();
+
+    assert.equal(restore.status, 200);
+    assert.equal(restored.total, 1);
+    assert.equal(restored.restored[0].name, name);
+    assert.equal(restored.restored[0].url, `/audio/${encodeURIComponent(name)}`);
+
+    const backupResponse = await fetch(`${base}/api/audio/backup`, { headers });
+    assert.equal(backupResponse.status, 200);
+    assert.match(
+      backupResponse.headers.get("content-disposition") || "",
+      /yumeika-audio-backup-\d{4}-\d{2}-\d{2}\.json/
+    );
+
+    const backup = await backupResponse.json();
+    const entry = backup.files.find(file => file.name === name);
+    assert.ok(entry, "the restored track is inside the backup");
+    assert.equal(entry.mime, "audio/mpeg");
+    assert.equal(
+      Buffer.from(entry.data, "base64").length,
+      Buffer.from(base64, "base64").length,
+      "the backup carries the original bytes"
+    );
+
+    const audio = await fetch(`${base}/audio/${name}`);
+    assert.equal(audio.status, 200);
+    assert.match(audio.headers.get("content-type") || "", /audio\/mpeg/);
+  } finally {
+    await fetch(`${base}/api/audio/${name}`, { method: "DELETE", headers }).catch(() => {});
+  }
+});
