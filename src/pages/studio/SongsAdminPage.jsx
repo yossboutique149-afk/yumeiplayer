@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Download, ExternalLink, Plus, Save, Trash2, Upload, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Download, ExternalLink, Plus, RefreshCw, Save, Trash2, Upload, X } from "lucide-react";
 import { repo } from "../../lib/dataClient.js";
 import { STORAGE_BUCKETS } from "../../lib/supabase.js";
 import { useContent } from "../../contexts/ContentContext.jsx";
@@ -10,7 +10,14 @@ import EmptyState from "../../components/EmptyState.jsx";
 import StudyGenerator from "../../components/StudyGenerator.jsx";
 import { formatDuration, slugify } from "../../lib/format.js";
 import { isAllowedEmbed } from "../../components/EmbedFrame.jsx";
-import { downloadAudioBackup, restoreAudioBackup, uploadAudioFile } from "../../lib/audioLibrary.js";
+import {
+  audioCacheStatus,
+  downloadAudioBackup,
+  restoreAudioBackup,
+  restoreMissingAudioFromCache,
+  uploadAudioFile
+} from "../../lib/audioLibrary.js";
+import { formatBytes } from "../../lib/audioFile.js";
 
 const EMPTY = {
   title: "",
@@ -37,6 +44,8 @@ export default function SongsAdminPage() {
   const [draft, setDraft] = useState(null);
   const [busy, setBusy] = useState(false);
   const [backupBusy, setBackupBusy] = useState(false);
+  const [autoBusy, setAutoBusy] = useState(false);
+  const [cacheInfo, setCacheInfo] = useState({ supported: true, count: 0, bytes: 0 });
   const [linksText, setLinksText] = useState("[]");
 
   function edit(song) {
@@ -154,6 +163,63 @@ export default function SongsAdminPage() {
       setBackupBusy(false);
     }
   }
+
+  /*
+   * Every redeploy starts with an empty audio folder. The copy kept in this
+   * browser is uploaded again as soon as the Studio opens, so the tracks are
+   * back without downloading or restoring anything by hand.
+   */
+  useEffect(() => {
+    let active = true;
+
+    (async () => {
+      try {
+        const result = await restoreMissingAudioFromCache();
+        if (!active) return;
+        if (result.restored > 0) {
+          await refresh();
+          success(
+            `Automatic restore: ${result.restored} track${result.restored === 1 ? "" : "s"} back in the library.`
+          );
+        }
+        const status = await audioCacheStatus();
+        if (active) setCacheInfo(status);
+      } catch {
+        /* The manual backup buttons still work if this fails. */
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [refresh, success]);
+
+  async function checkAutomaticRestore() {
+    setAutoBusy(true);
+    try {
+      const result = await restoreMissingAudioFromCache();
+      const status = await audioCacheStatus();
+      setCacheInfo(status);
+
+      if (result.restored > 0) {
+        await refresh();
+        success(`Restored ${result.restored} track${result.restored === 1 ? "" : "s"}.`);
+      } else if (result.skipped === "locked") {
+        info("Sign in with the admin password so the tracks stored on this device can be restored.");
+      } else if (!status.supported) {
+        info("This browser cannot keep a local audio copy. Use the backup buttons instead.");
+      } else if (!status.count) {
+        info("No track is stored on this device yet. Upload audio here to create the copy.");
+      } else {
+        info(`All ${status.count} track(s) on this device are already on the server.`);
+      }
+    } catch (err) {
+      toastError(err.message || "The automatic restore could not run.");
+    } finally {
+      setAutoBusy(false);
+    }
+  }
+
   return (
     <div className="stack">
       <div className="admin-head">
@@ -202,6 +268,29 @@ export default function SongsAdminPage() {
               />
             </label>
           </div>
+        </div>
+      </div>
+
+      <div className="admin-card stack">
+        <div className="row between">
+          <div>
+            <h2>Automatic copy on this device</h2>
+            <p className="muted small">
+              {cacheInfo.supported
+                ? `${cacheInfo.count} track${cacheInfo.count === 1 ? "" : "s"} (${formatBytes(
+                    cacheInfo.bytes
+                  )}) kept in this browser. After the app is redeployed, opening this page puts them back on the server by itself — nothing to download or restore by hand.`
+                : "This browser cannot keep a local audio copy. Use the backup buttons above."}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-quiet"
+            onClick={checkAutomaticRestore}
+            disabled={autoBusy}
+          >
+            <RefreshCw size={15} /> {autoBusy ? "Checking…" : "Restore missing tracks"}
+          </button>
         </div>
       </div>
 

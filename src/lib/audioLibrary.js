@@ -6,8 +6,19 @@ import {
   backupFilename,
   downloadFilename,
   isAllowedAudio,
+  mimeForName,
   parseAudioBackup
 } from "./audioFile.js";
+import {
+  blobToBase64,
+  cachedAudioBytes,
+  deleteCachedAudio,
+  getCachedAudio,
+  isAudioCacheSupported,
+  listCachedAudio,
+  planAudioRestore,
+  saveCachedAudio
+} from "./audioCache.js";
 
 /**
  * Audio library used by the Studio and by the download buttons.
@@ -65,6 +76,15 @@ export async function uploadAudioFile(file) {
   if (!response.ok) {
     throw new Error(payload.error || payload.hint || "The audio file could not be uploaded.");
   }
+
+  /* Keep a copy on this device: the server's folder is emptied by a redeploy
+     and this copy is what puts the track back automatically. */
+  try {
+    await saveCachedAudio(payload.name, file, { mime: file.type || mimeForName(file.name) });
+  } catch {
+    /* A browser without IndexedDB still uploads and plays normally. */
+  }
+
   return { url: payload.url, name: payload.name, size: payload.size, storage: "server" };
 }
 
@@ -112,6 +132,14 @@ export async function deleteAudioFile(name) {
     const payload = await response.json().catch(() => ({}));
     throw new Error(payload.error || "The audio file could not be deleted.");
   }
+
+  /* Forget the local copy too, so a deleted track is never restored. */
+  try {
+    await deleteCachedAudio(String(name).replace(/^\/?audio\//, ""));
+  } catch {
+    /* nothing stored on this device */
+  }
+
   return true;
 }
 
