@@ -237,3 +237,65 @@ export async function restoreAudioBackup(input) {
   }
   return payload;
 }
+
+/** How much audio this device is holding, for the Studio's status line. */
+export async function audioCacheStatus() {
+  if (!isAudioCacheSupported()) return { supported: false, count: 0, bytes: 0 };
+  try {
+    const files = await listCachedAudio();
+    return { supported: true, count: files.length, bytes: cachedAudioBytes(files) };
+  } catch {
+    return { supported: false, count: 0, bytes: 0 };
+  }
+}
+
+/**
+ * Uploads again every track this device holds that the server no longer has.
+ *
+ * A redeploy replaces the container, so data/audio comes back empty while the
+ * songs keep pointing at /audio/<name>. The device copy closes that gap by
+ * itself, with the same endpoint the manual restore uses.
+ */
+export async function restoreMissingAudioFromCache() {
+  const idle = { restored: 0, missing: 0, cached: 0, skipped: "" };
+
+  if (isSupabaseConfigured) return { ...idle, skipped: "supabase" };
+  if (!isAudioCacheSupported()) return { ...idle, skipped: "unsupported" };
+  if (!getServerPassword()) return { ...idle, skipped: "locked" };
+
+  const cached = await listCachedAudio();
+  if (!cached.length) return { ...idle, skipped: "empty" };
+
+  const response = await fetch("/api/audio");
+  if (!response.ok) return { ...idle, cached: cached.length, skipped: "offline" };
+
+  const payload = await response.json().catch(() => ({}));
+  const plan = planAudioRestore(payload.files || [], cached);
+  if (!plan.missing.length) {
+    return { ...idle, cached: cached.length, skipped: "complete" };
+  }
+
+  const files = [];
+  for (const name of plan.missing) {
+    const record = await getCachedAudio(name);
+    if (!record || !record.blob) continue;
+    files.push({
+      name,
+      mime: record.mime || mimeForName(name),
+      data: await blobToBase64(record.blob)
+    });
+  }
+  if (!files.length) {
+    return { ...idle, cached: cached.length, missing: plan.missing.length, skipped: "unreadable" };
+  }
+
+  const result = await restoreAudioBackup({ files });
+  const restored = Array.isArray(result.restored) ? result.restored.length : Number(result.total) || 0;
+
+  return {
+    restored,
+    missing: plan.missing.length,
+    cached: cached.length,
+    skipped: ""
+  };
+}
